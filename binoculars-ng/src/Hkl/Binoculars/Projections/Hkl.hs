@@ -41,7 +41,6 @@ import           Control.Monad.Reader               (MonadReader, ask)
 import           Data.Aeson                         (FromJSON, ToJSON)
 import           Data.HashMap.Strict                (fromList)
 import           Data.Ini                           (Ini (..))
-import           Data.Maybe                         (fromMaybe)
 import           Data.Text                          (pack, unpack)
 import           Data.Text.IO                       (putStr)
 import           Data.Vector.Storable.Mutable       (unsafeWith)
@@ -277,12 +276,13 @@ processHklP = do
 
 instance ChunkP [DSDataFrameHkl DSPath] where
     chunkP mSkipFirst mSkipLast ps =
-      skipMalformed $ forever $ do
-      sfp <- await
-      withScanFileP sfp $ \f' ->
-        withDataSourcesP f' ps $ \_p p' -> do
-          (DataSourceShape'Range (Z :. f) (Z :. t)) <- ds'Shape p'
-          yield $ cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
+        skipMalformed $ forever $ do
+          sfp <- await
+          withScanFileP sfp $ \f' ->
+              withDataSourcesP f' ps $ \p p' ->
+                  do liftIO $ print p
+                     sh <- ds'Shape p'
+                     yield $ clippedChunk mSkipFirst mSkipLast sfp sh
 
 instance FramesP [DSDataFrameHkl DSPath] DataFrameHkl where
   framesP ps = skipMalformed $ forever $ do

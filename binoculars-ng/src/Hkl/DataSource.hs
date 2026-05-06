@@ -92,6 +92,7 @@ import           Hkl.Pipes
 import           Hkl.Repa
 import           Hkl.Types
 
+
 --------------------
 -- Is0DStreamable --
 --------------------
@@ -231,6 +232,7 @@ type DSWrap_ f k = DSWrap k (f k)
 
 data DataSourceShape
     = DataSourceShape'Range !DIM1 !DIM1
+    | DataSourceShape'Range'DIM2 !DIM1 !DIM1
       deriving Eq
 
 combine'Shape :: DataSourceShape -> DataSourceShape -> DataSourceShape
@@ -238,6 +240,12 @@ combine'Shape (DataSourceShape'Range _ (Z :. 1)) s = s
 combine'Shape s (DataSourceShape'Range _ (Z :. 1)) = s
 combine'Shape (DataSourceShape'Range (Z :. f1) (Z :. t1)) (DataSourceShape'Range (Z :. f2) (Z :. t2))
     = DataSourceShape'Range (ix1 (max f1 f2)) (ix1 (min t1 t2))
+combine'Shape (DataSourceShape'Range (Z :. f1) (Z :. t1)) (DataSourceShape'Range'DIM2 (Z :. f2) (Z :. t2))
+    = DataSourceShape'Range'DIM2 (ix1 (max f1 f2)) (ix1 (min t1 t2))
+combine'Shape (DataSourceShape'Range'DIM2 ( Z :. f1) (Z :. t1)) (DataSourceShape'Range (Z :. f2) (Z :. t2))
+    = DataSourceShape'Range'DIM2 (ix1 (max f1 f2)) (ix1 (min t1 t2))
+combine'Shape (DataSourceShape'Range'DIM2 (Z :. f1) (Z :. t1)) (DataSourceShape'Range'DIM2 (Z :. f2) (Z :. t2))
+    = DataSourceShape'Range'DIM2 (ix1 (max f1 f2)) (ix1 (min t1 t2))
 
 shape1 :: DataSourceShape
 shape1 = DataSourceShape'Range (Z :. 0) (Z :. 1)
@@ -250,7 +258,8 @@ ds'Shape'Dataset ds = do
     Nothing -> pure $ DataSourceShape'Range (ix1 0) (ix1 (fromIntegral t))
 
 length'DataSourceShape :: DataSourceShape -> Int
-length'DataSourceShape (DataSourceShape'Range (Z :. f) (Z :. t)) = t - f
+length'DataSourceShape (DataSourceShape'Range (Z :. f) (Z :. t))      = t - f
+length'DataSourceShape (DataSourceShape'Range'DIM2 (Z :. f) (Z :. t)) = t - f
 
 -- | Generic 'ds'Shape'
 
@@ -394,8 +403,10 @@ data instance DSAttenuation DSAcq
 
 instance DataSource DSAttenuation where
   ds'Shape (DataSourceAcq'Attenuation fp off _ _)
-      = do (DataSourceShape'Range f (Z :. t)) <- ds'Shape fp
-           pure $ DataSourceShape'Range f (Z :. (t - off))
+      = do sh <- ds'Shape fp
+           pure $ case sh of
+                    DataSourceShape'Range f (Z :. t) -> DataSourceShape'Range f (Z :. (t - off))
+                    DataSourceShape'Range'DIM2 f (Z :. t) -> DataSourceShape'Range'DIM2 f (Z :. (t - off))
   ds'Shape (DataSourceAcq'ApplyedAttenuationFactor fp) = ds'Shape fp
   ds'Shape DataSourceAcq'NoAttenuation                 = pure shape1
 
@@ -460,8 +471,10 @@ data instance DSDouble DSAcq
 instance DataSource DSDouble where
   ds'Shape (DataSourceAcq'Double'Hdf5 p) = ds'Shape p
   ds'Shape (DataSourceAcq'Double'Hdf5WithShift p s)
-      = do (DataSourceShape'Range f (Z :. t)) <- ds'Shape p
-           pure $ DataSourceShape'Range f (Z :. (t - s))
+      = do sh <- ds'Shape p
+           pure $ case sh of
+                    DataSourceShape'Range f (Z :. t) -> DataSourceShape'Range f (Z :. (t - s))
+                    DataSourceShape'Range'DIM2 f (Z :. t) -> DataSourceShape'Range'DIM2 f (Z :. (t - s))
   ds'Shape (DataSourceAcq'Double'Const _) = pure shape1
 
   withDataSourceP f (DataSourcePath'Double'Hdf5 ps) g

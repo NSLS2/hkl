@@ -975,13 +975,13 @@ processQCustomP = do
 
 instance ChunkP [DSDataFrameQCustom DSPath] where
     chunkP mSkipFirst mSkipLast ps =
-      skipMalformed $ forever $ do
-      sfp <- await
-      withScanFileP sfp $ \f' ->
-        withDataSourcesP f' ps $ \p p' -> do
-          liftIO $ print p
-          (DataSourceShape'Range (Z :. f) (Z :. t)) <- ds'Shape p'
-          yield $ cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
+        skipMalformed $ forever $ do
+          sfp <- await
+          withScanFileP sfp $ \f' ->
+              withDataSourcesP f' ps $ \p p' ->
+                  do liftIO $ print p
+                     sh <- ds'Shape p'
+                     yield $ clippedChunk mSkipFirst mSkipLast sfp sh
 
 instance FramesP [DSDataFrameQCustom DSPath] DataFrameQCustom where
     framesP ps =

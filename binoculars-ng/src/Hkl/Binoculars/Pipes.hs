@@ -20,6 +20,7 @@ module Hkl.Binoculars.Pipes
   , ChunkP(..)
   , FramesP(..)
   , accumulateP
+  , clippedChunk
   , progress
   , project
   , skipMalformed
@@ -33,6 +34,7 @@ import           Control.Monad              (forever)
 import           Control.Monad.Catch        (tryJust)
 import           Control.Monad.IO.Class     (MonadIO (liftIO))
 import           Data.IORef                 (IORef, readIORef)
+import           Data.Maybe                 (fromMaybe)
 import           Path                       (toFilePath)
 import           Pipes                      (Consumer, Pipe, Proxy, await,
                                              yield)
@@ -60,6 +62,13 @@ import           Hkl.Types
 
 class ChunkP a where
   chunkP :: MonadSafe m => Maybe Int -> Maybe Int -> a -> Pipe ScanFilePath (Chunk Int ScanFilePath) m ()
+
+clippedChunk :: Maybe Int -> Maybe Int -> ScanFilePath -> DataSourceShape -> Chunk Int ScanFilePath
+clippedChunk mSkipFirst mSkipLast sfp sh = case sh of
+                 DataSourceShape'Range (Z :. f) (Z :. t) ->
+                     cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
+                 DataSourceShape'Range'DIM2 (Z :. f) (Z :. t) ->
+                     cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
 
 -- class FramesP
 class ChunkP a => FramesP a b where
