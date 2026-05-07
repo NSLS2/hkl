@@ -47,8 +47,9 @@ module Hkl.DataSource
   , HklBinocularsException(..)
   , Is0DStreamable(..)
   , Is1DStreamable(..)
+  , Is2DStreamable(..)
   , combine'Shape
-  , length'DataSourceShape
+  , size'DataSourceShape
   , withDataSourcesP
   ) where
 
@@ -140,6 +141,10 @@ instance Is0DStreamable (DSDouble DSAcq) Double where
     extract0DStreamValue (DataSourceAcq'Double'Hdf5WithShift d _) = extract0DStreamValue d
     extract0DStreamValue (DataSourceAcq'Double'Const a) = pure a
 
+instance Is0DStreamable (DSMask DSAcq) (Maybe Mask) where
+    extract0DStreamValue DataSourceAcq'Mask'NoMask = pure Nothing
+    extract0DStreamValue (DataSourceAcq'Mask m)    = pure $ Just m
+
 instance Is0DStreamable (DSScannumber DSAcq) Scannumber where
     extract0DStreamValue (DataSourceAcq'Scannumber'Const sn) = pure sn
 
@@ -159,13 +164,13 @@ class Is1DStreamable a e where
 badAttenuation :: Float
 badAttenuation = -100
 
-instance Is1DStreamable (DSDataset DIM1 Double DSAcq) CDouble where
+instance Is1DStreamable (DSDataset DIM2 Double DSAcq) CDouble where
     extract1DStreamValue (DataSourceAcq'Dataset ds) = getPosition ds
 
-instance Is1DStreamable (DSDataset DIM1 Double DSAcq) Double where
+instance Is1DStreamable (DSDataset DIM2 Double DSAcq) Double where
     extract1DStreamValue (DataSourceAcq'Dataset ds) = getPosition ds
 
-instance Is1DStreamable (DSDataset DIM1 Float DSAcq) Float where
+instance Is1DStreamable (DSDataset DIM2 Float DSAcq) Float where
     extract1DStreamValue (DataSourceAcq'Dataset ds) = getPosition ds
 
 instance Is1DStreamable (DSAttenuation DSAcq) Attenuation where
@@ -204,19 +209,79 @@ instance  Is1DStreamable (DSGeometry DSAcq) Geometry where
 
 instance Is1DStreamable (DSImage DSAcq) Image where
     extract1DStreamValue (DataSourceAcq'Image'Dummy buf) _                    = pure $ ImageDouble buf
-    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Double det ds buf) i       = ImageDouble <$> getArrayInBuffer buf det ds i
-    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Int32 det ds buf) i        = ImageInt32 <$> getArrayInBuffer buf det ds i
-    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Word16 det ds buf) i       = ImageWord16 <$> getArrayInBuffer buf det ds i
-    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Word32 det ds buf) i       = ImageWord32 <$> getArrayInBuffer buf det ds i
+    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Double det ds buf) i       = ImageDouble <$> getArrayInBuffer buf det ds (Z :. i)
+    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Int32 det ds buf) i        = ImageInt32 <$> getArrayInBuffer buf det ds (Z :. i)
+    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Word16 det ds buf) i       = ImageWord16 <$> getArrayInBuffer buf det ds (Z :. i)
+    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Word32 det ds buf) i       = ImageWord32 <$> getArrayInBuffer buf det ds (Z :. i)
     extract1DStreamValue (DataSourceAcq'Image'Img'Int32 det buf tmpl sn fn) i = ImageInt32 <$> readImgInBuffer buf det (fn tmpl sn i)
-
-instance Is1DStreamable (DSMask DSAcq) (Maybe Mask) where
-    extract1DStreamValue DataSourceAcq'Mask'NoMask _ = pure Nothing
-    extract1DStreamValue (DataSourceAcq'Mask m) _    = pure $ Just m
 
 instance Is1DStreamable (DSTimestamp DSAcq) Timestamp where
     extract1DStreamValue (DataSourceAcq'Timestamp'Hdf5 ds) i   = Timestamp <$> extract1DStreamValue ds i
     extract1DStreamValue DataSourceAcq'Timestamp'NoTimestamp _ = pure $ Timestamp 0
+
+--------------------
+-- Is2DStreamable --
+--------------------
+
+class Is2DStreamable a e where
+  extract2DStreamValue :: a -> DIM2 -> IO e
+
+-- Is2DStreamable (instances)
+
+instance Is2DStreamable (DSDataset DIM2 Double DSAcq) Double where
+    extract2DStreamValue (DataSourceAcq'Dataset ds) = getPositionNew ds
+
+instance Is2DStreamable (DSDataset DIM2 Double DSAcq) CDouble where
+    extract2DStreamValue (DataSourceAcq'Dataset ds) = getPositionNew ds
+
+instance Is2DStreamable (DSDataset DIM2 Float DSAcq) Float where
+    extract2DStreamValue (DataSourceAcq'Dataset ds) = getPositionNew ds
+
+instance Is2DStreamable (DSDouble DSAcq) CDouble where
+    extract2DStreamValue (DataSourceAcq'Double'Hdf5 d) i  = extract2DStreamValue d i
+    extract2DStreamValue (DataSourceAcq'Double'Hdf5WithShift d s) (Z :. j :. i)  = extract2DStreamValue d (Z :. j :. (i + s))
+    extract2DStreamValue (DataSourceAcq'Double'Const d) _ = extract0DStreamValue d
+
+instance Is2DStreamable (DSFloat DSAcq) Float where
+    extract2DStreamValue (DataSourceAcq'Float'Hdf5 ds) = extract2DStreamValue ds
+
+instance Is2DStreamable (DSAttenuation DSAcq) Attenuation where
+    extract2DStreamValue (DataSourceAcq'Attenuation ds offset coef mmax) (Z :. j :. i) =
+        Attenuation <$> do
+          v <-  extract2DStreamValue ds (Z :. j :. (i + offset))
+          if v == badAttenuation
+          then throwIO (WrongAttenuation "attenuation is wrong" (i + offset) (float2Double v))
+          else case mmax of
+                 Just m -> if v > m
+                          then throwIO (WrongAttenuation "max inserted filters exceeded" (i + offset) (float2Double v))
+                          else return (coef ** float2Double v)
+                 Nothing -> return (coef ** float2Double v)
+    extract2DStreamValue (DataSourceAcq'ApplyedAttenuationFactor ds) i = Attenuation . float2Double <$> extract2DStreamValue ds i
+    extract2DStreamValue DataSourceAcq'NoAttenuation _                 = pure $ Attenuation 1
+
+instance Is2DStreamable (DSDoubles DSAcq) (Data.Vector.Storable.Vector CDouble) where
+    extract2DStreamValue (DataSourceAcq'List ds) i = fromList <$> Prelude.mapM (`extract2DStreamValue` i) ds
+
+instance Is2DStreamable (DSGeometry DSAcq) Geometry where
+     extract2DStreamValue (DataSourceAcq'Geometry g w' as') i =
+         do w <- extract0DStreamValue w'
+            as <- extract2DStreamValue as' i
+            let state = GeometryState w as
+            pure $ case g of
+                     (Geometry'Custom axes _) -> Geometry'Custom axes (Just state)
+                     (Geometry'Factory factory _) -> Geometry'Factory factory (Just state)
+
+instance Is2DStreamable (DSImage DSAcq) Image where
+    extract2DStreamValue (DataSourceAcq'Image'Dummy buf) _                    = pure $ ImageDouble buf
+    extract2DStreamValue (DataSourceAcq'Image'Hdf5'Double det ds buf) i       = ImageDouble <$> getArrayInBuffer buf det ds i
+    extract2DStreamValue (DataSourceAcq'Image'Hdf5'Int32 det ds buf) i        = ImageInt32 <$> getArrayInBuffer buf det ds i
+    extract2DStreamValue (DataSourceAcq'Image'Hdf5'Word16 det ds buf) i       = ImageWord16 <$> getArrayInBuffer buf det ds i
+    extract2DStreamValue (DataSourceAcq'Image'Hdf5'Word32 det ds buf) i       = ImageWord32 <$> getArrayInBuffer buf det ds i
+    extract2DStreamValue (DataSourceAcq'Image'Img'Int32 _det _buf _tmpl _sn _fn) _i = undefined
+
+instance Is2DStreamable (DSTimestamp DSAcq) Timestamp where
+    extract2DStreamValue (DataSourceAcq'Timestamp'Hdf5 ds) i   = Timestamp <$> extract2DStreamValue ds i
+    extract2DStreamValue DataSourceAcq'Timestamp'NoTimestamp _ = pure $ Timestamp 0
 
 ----------------
 -- DataSource --
@@ -232,34 +297,35 @@ type DSWrap_ f k = DSWrap k (f k)
 
 data DataSourceShape
     = DataSourceShape'Range !DIM1 !DIM1
-    | DataSourceShape'Range'DIM2 !DIM1 !DIM1
-      deriving Eq
+    | DataSourceShape'Range'DIM2 !DIM1 !DIM1 !DIM1
+      deriving (Eq, Show)
 
 combine'Shape :: DataSourceShape -> DataSourceShape -> DataSourceShape
 combine'Shape (DataSourceShape'Range _ (Z :. 1)) s = s
 combine'Shape s (DataSourceShape'Range _ (Z :. 1)) = s
 combine'Shape (DataSourceShape'Range (Z :. f1) (Z :. t1)) (DataSourceShape'Range (Z :. f2) (Z :. t2))
     = DataSourceShape'Range (ix1 (max f1 f2)) (ix1 (min t1 t2))
-combine'Shape (DataSourceShape'Range (Z :. f1) (Z :. t1)) (DataSourceShape'Range'DIM2 (Z :. f2) (Z :. t2))
-    = DataSourceShape'Range'DIM2 (ix1 (max f1 f2)) (ix1 (min t1 t2))
-combine'Shape (DataSourceShape'Range'DIM2 ( Z :. f1) (Z :. t1)) (DataSourceShape'Range (Z :. f2) (Z :. t2))
-    = DataSourceShape'Range'DIM2 (ix1 (max f1 f2)) (ix1 (min t1 t2))
-combine'Shape (DataSourceShape'Range'DIM2 (Z :. f1) (Z :. t1)) (DataSourceShape'Range'DIM2 (Z :. f2) (Z :. t2))
-    = DataSourceShape'Range'DIM2 (ix1 (max f1 f2)) (ix1 (min t1 t2))
+combine'Shape (DataSourceShape'Range (Z :. f1) (Z :. t1)) (DataSourceShape'Range'DIM2 (Z :. f2) (Z :. t2) n)
+    = DataSourceShape'Range'DIM2 (ix1 (max f1 f2)) (ix1 (min t1 t2)) n
+combine'Shape (DataSourceShape'Range'DIM2 ( Z :. f1) (Z :. t1) n) (DataSourceShape'Range (Z :. f2) (Z :. t2))
+    = DataSourceShape'Range'DIM2 (ix1 (max f1 f2)) (ix1 (min t1 t2)) n
+combine'Shape (DataSourceShape'Range'DIM2 (Z :. f1) (Z :. t1) (Z :. n1)) (DataSourceShape'Range'DIM2 (Z :. f2) (Z :. t2) (Z :. n2))
+    = DataSourceShape'Range'DIM2 (ix1 (max f1 f2)) (ix1 (min t1 t2)) (ix1 (min n1 n2))
 
 shape1 :: DataSourceShape
 shape1 = DataSourceShape'Range (Z :. 0) (Z :. 1)
 
 ds'Shape'Dataset :: Dataset -> IO DataSourceShape
 ds'Shape'Dataset ds = do
-  (t:_, mt:_) <- datasetShape ds
-  case mt of
-    Just t' -> pure $ DataSourceShape'Range (ix1 0) (ix1 (fromIntegral t'))
-    Nothing -> pure $ DataSourceShape'Range (ix1 0) (ix1 (fromIntegral t))
+  (ts, mts) <- datasetShape ds
+  pure $ case length ts of
+           1 -> DataSourceShape'Range (ix1 0) (ix1 (fromIntegral (maybe (ts !! 0) id (mts !! 0))))
+           2 -> DataSourceShape'Range'DIM2 (ix1 0) (ix1 (fromIntegral (maybe (ts !! 0) id (mts !! 0)))) (ix1 (fromIntegral (maybe (ts !! 1) id (mts !! 1))))
+           _ -> DataSourceShape'Range'DIM2 (ix1 0) (ix1 (fromIntegral (maybe (ts !! 0) id (mts !! 0)))) (ix1 (fromIntegral (maybe (ts !! 1) id (mts !! 1))))
 
-length'DataSourceShape :: DataSourceShape -> Int
-length'DataSourceShape (DataSourceShape'Range (Z :. f) (Z :. t))      = t - f
-length'DataSourceShape (DataSourceShape'Range'DIM2 (Z :. f) (Z :. t)) = t - f
+size'DataSourceShape :: DataSourceShape -> Int
+size'DataSourceShape (DataSourceShape'Range (Z :. f) (Z :. t))        = t - f
+size'DataSourceShape (DataSourceShape'Range'DIM2 (Z :. f) (Z :. t) (Z :. n)) = (t - f) * n
 
 -- | Generic 'ds'Shape'
 
@@ -406,7 +472,7 @@ instance DataSource DSAttenuation where
       = do sh <- ds'Shape fp
            pure $ case sh of
                     DataSourceShape'Range f (Z :. t) -> DataSourceShape'Range f (Z :. (t - off))
-                    DataSourceShape'Range'DIM2 f (Z :. t) -> DataSourceShape'Range'DIM2 f (Z :. (t - off))
+                    DataSourceShape'Range'DIM2 f (Z :. t) n -> DataSourceShape'Range'DIM2 f (Z :. (t - off)) n
   ds'Shape (DataSourceAcq'ApplyedAttenuationFactor fp) = ds'Shape fp
   ds'Shape DataSourceAcq'NoAttenuation                 = pure shape1
 
@@ -456,15 +522,15 @@ instance DataSource DSDegree where
 
 data family DSDouble (k :: DSKind)
 data instance DSDouble DSPath
-    = DataSourcePath'Double'Hdf5 (DSWrap_ (DSDataset DIM1 Double) DSPath)
-    | DataSourcePath'Double'Hdf5WithShift (DSWrap_ (DSDataset DIM1 Double) DSPath) Int
+    = DataSourcePath'Double'Hdf5 (DSWrap_ (DSDataset DIM2 Double) DSPath)
+    | DataSourcePath'Double'Hdf5WithShift (DSWrap_ (DSDataset DIM2 Double) DSPath) Int
     | DataSourcePath'Double'Ini ConfigContent Section Key
     | DataSourcePath'Double'Const Double
     deriving (Generic, Show, FromJSON, ToJSON)
 
 data instance DSDouble DSAcq
-    = DataSourceAcq'Double'Hdf5 (DSWrap_ (DSDataset DIM1 Double) DSAcq)
-    | DataSourceAcq'Double'Hdf5WithShift (DSWrap_ (DSDataset DIM1 Double) DSAcq) Int
+    = DataSourceAcq'Double'Hdf5 (DSWrap_ (DSDataset DIM2 Double) DSAcq)
+    | DataSourceAcq'Double'Hdf5WithShift (DSWrap_ (DSDataset DIM2 Double) DSAcq) Int
     | DataSourceAcq'Double'Const Double
     deriving Generic
 
@@ -474,7 +540,7 @@ instance DataSource DSDouble where
       = do sh <- ds'Shape p
            pure $ case sh of
                     DataSourceShape'Range f (Z :. t) -> DataSourceShape'Range f (Z :. (t - s))
-                    DataSourceShape'Range'DIM2 f (Z :. t) -> DataSourceShape'Range'DIM2 f (Z :. (t - s))
+                    DataSourceShape'Range'DIM2 f (Z :. t) n -> DataSourceShape'Range'DIM2 f (Z :. (t - s)) n
   ds'Shape (DataSourceAcq'Double'Const _) = pure shape1
 
   withDataSourceP f (DataSourcePath'Double'Hdf5 ps) g
@@ -526,11 +592,11 @@ instance DataSource DSDoubles where
 
 data family DSFloat (k :: DSKind)
 newtype instance DSFloat DSPath
-    = DataSourcePath'Float'Hdf5 (DSWrap_ (DSDataset DIM1 Float) DSPath)
+    = DataSourcePath'Float'Hdf5 (DSWrap_ (DSDataset DIM2 Float) DSPath)
     deriving (Eq, Generic, Show)
     deriving anyclass (FromJSON, ToJSON)
 newtype instance DSFloat DSAcq
-    = DataSourceAcq'Float'Hdf5 (DSWrap_ (DSDataset DIM1 Float) DSAcq)
+    = DataSourceAcq'Float'Hdf5 (DSWrap_ (DSDataset DIM2 Float) DSAcq)
     deriving Generic
 
 instance DataSource DSFloat where
@@ -586,14 +652,34 @@ data instance DSImage DSAcq
     | DataSourceAcq'Image'Img'Int32 (Detector Hkl DIM2) (IOVector Int32) Text Scannumber (Text -> Scannumber -> Int -> FilePath)
     deriving Generic
 
-instance DataSource DSImage where
-  withDataSourceP _ path@(DataSourcePath'Image'Dummy det v) g
-      =  do let n = size . shape $ det
-            arr <- liftIO $ replicate n v
-            g path (DataSourceAcq'Image'Dummy arr)
 
-  withDataSourceP f (DataSourcePath'Image'Hdf5 det ps) g
-      = withDataSourcesP f ps $ \p (DataSourceAcq'Dataset ds) -> do
+ds'Shape'Dataset'Image :: Dataset -> IO DataSourceShape
+ds'Shape'Dataset'Image ds = do
+  (ts, mts) <- datasetShape ds
+  pure $ case length ts of
+           0 -> error "Not an Image dataset 0 dim"
+           1 -> error "Not an Image dataset 1 dim"
+           2 -> shape1
+           3 -> DataSourceShape'Range (ix1 0) (ix1 (fromIntegral (maybe (ts !! 0) id (mts !! 0))))
+           4 -> DataSourceShape'Range'DIM2 (ix1 0) (ix1 (fromIntegral (maybe (ts !! 0) id (mts !! 0)))) (ix1 (fromIntegral (maybe (ts !! 1) id (mts !! 1))))
+           _ -> DataSourceShape'Range'DIM2 (ix1 0) (ix1 (fromIntegral (maybe (ts !! 0) id (mts !! 0)))) (ix1 (fromIntegral (maybe (ts !! 1) id (mts !! 1))))
+
+
+instance DataSource DSImage where
+    ds'Shape (DataSourceAcq'Image'Dummy _) = pure $ shape1
+    ds'Shape (DataSourceAcq'Image'Hdf5'Double _ ds _) = liftIO $ ds'Shape'Dataset'Image ds
+    ds'Shape (DataSourceAcq'Image'Hdf5'Int32  _ ds _) = liftIO $ ds'Shape'Dataset'Image ds
+    ds'Shape (DataSourceAcq'Image'Hdf5'Word16 _ ds _) = liftIO $ ds'Shape'Dataset'Image ds
+    ds'Shape (DataSourceAcq'Image'Hdf5'Word32 _ ds _) = liftIO $ ds'Shape'Dataset'Image ds
+    ds'Shape (DataSourceAcq'Image'Img'Int32 _ _ _ _ _) = pure $ shape1
+
+    withDataSourceP _ path@(DataSourcePath'Image'Dummy det v) g
+        =  do let n = size . shape $ det
+              arr <- liftIO $ replicate n v
+              g path (DataSourceAcq'Image'Dummy arr)
+
+    withDataSourceP f (DataSourcePath'Image'Hdf5 det ps) g
+        = withDataSourcesP f ps $ \p (DataSourceAcq'Dataset ds) -> do
                               let path = DataSourcePath'Image'Hdf5 det [p]
                               t <- liftIO $ getDatasetType ds
                               s <- liftIO $ getTypeSize t
@@ -612,13 +698,13 @@ instance DataSource DSImage where
                                          g path (DataSourceAcq'Image'Hdf5'Word32 det ds arr))
                                     ]
 
-  withDataSourceP (ScanFile _ sn) path@(DataSourcePath'Image'Img det tmpl (Scannumber sn0)) g
-    = do let n = size . shape $ det
-         arr <- liftIO $ unsafeNew n
-         g path (DataSourceAcq'Image'Img'Int32 det arr tmpl sn f)
-             where
-               f :: Text -> Scannumber -> Int -> FilePath
-               f tmpl' (Scannumber sn') i = printf (unpack tmpl') sn0 sn0 ((sn' - sn0) * 1029 + i)
+    withDataSourceP (ScanFile _ sn) path@(DataSourcePath'Image'Img det tmpl (Scannumber sn0)) g
+        = do let n = size . shape $ det
+             arr <- liftIO $ unsafeNew n
+             g path (DataSourceAcq'Image'Img'Int32 det arr tmpl sn f)
+                 where
+                   f :: Text -> Scannumber -> Int -> FilePath
+                   f tmpl' (Scannumber sn') i = printf (unpack tmpl') sn0 sn0 ((sn' - sn0) * 1029 + i)
 
 instance HasFieldValue [DSImage DSPath] where
     fieldvalue = autoJSON
@@ -677,12 +763,12 @@ instance DataSource DSScannumber where
 
 data family DSTimestamp (k :: DSKind)
 data instance DSTimestamp DSPath
-    = DataSourcePath'Timestamp'Hdf5 (DSWrap_ (DSDataset DIM1 Double) DSPath)
+    = DataSourcePath'Timestamp'Hdf5 (DSWrap_ (DSDataset DIM2 Double) DSPath)
     | DataSourcePath'Timestamp'NoTimestamp
     deriving (Eq, Generic, Show, FromJSON, ToJSON)
 
 data instance DSTimestamp DSAcq
-    = DataSourceAcq'Timestamp'Hdf5 (DSWrap_ (DSDataset DIM1 Double) DSAcq)
+    = DataSourceAcq'Timestamp'Hdf5 (DSWrap_ (DSDataset DIM2 Double) DSAcq)
     | DataSourceAcq'Timestamp'NoTimestamp
     deriving Generic
 

@@ -3,7 +3,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 
 {-
-    Copyright  : Copyright (C) 2014-2024 Synchrotron SOLEIL
+    Copyright  : Copyright (C) 2014-2024, 2026 Synchrotron SOLEIL
                                          L'Orme des Merisiers Saint-Aubin
                                          BP 48 91192 GIF-sur-YVETTE CEDEX
     License    : GPL3+
@@ -18,6 +18,7 @@ module Hkl.Binoculars.Common
   , InputFn(..)
   , addSpace
   , chunk
+  , csize
   , cclip
   , clength
   , mkCube'
@@ -33,6 +34,7 @@ import           Foreign.Marshal.Array      (withArrayLen)
 import           Hkl.Binoculars.Config
 import           Hkl.Binoculars.Projections
 import           Hkl.C.Binoculars
+import           Hkl.DataSource
 import           Hkl.Image
 import           Hkl.Orphan                 ()
 import           Hkl.Repa
@@ -41,15 +43,18 @@ import           Hkl.Types
 data Chunk n a = Chunk !a !n !n
 deriving instance (Show n, Show a) => Show (Chunk n a)
 
+{-# SPECIALIZE cclip :: Int -> Int -> Chunk Int ScanFilePath -> Chunk Int ScanFilePath #-}
 cclip :: (Num n, Ord n) => n -> n -> Chunk n a -> Chunk n a
 cclip skipL skipH (Chunk a l h) = let nl = if l + skipL > h then l else l + skipL
                                       nh = if h - skipH < l then h else h - skipH
                                   in Chunk a nl nh
-{-# SPECIALIZE cclip :: Int -> Int -> Chunk Int FilePath -> Chunk Int FilePath #-}
 
+{-# SPECIALIZE clength :: Chunk Int FilePath -> Int  #-}
 clength :: Num n => Chunk n a -> n
 clength (Chunk _ l h) = h - l + 1
-{-# SPECIALIZE clength :: Chunk Int FilePath -> Int  #-}
+
+csize :: (Chunk Int a, DataSourceShape) -> Int
+csize (_, s) = size'DataSourceShape s
 
 cweight :: Num n => Chunk n a -> n
 cweight (Chunk _ l h) = h - l
@@ -76,7 +81,7 @@ chunk target = go target target
          | cweight x <= gap         -> [[x]]
          | (x1, x2) <- csplit x gap -> [x1] : golast tgt tgt x2
 
-{-# SPECIALIZE chunk :: Int -> [Chunk Int FilePath] -> [[Chunk Int FilePath]]  #-}
+{-# SPECIALIZE chunk :: Int -> [Chunk Int ScanFilePath] -> [[Chunk Int ScanFilePath]]  #-}
 
 --  DataFrameSpace
 

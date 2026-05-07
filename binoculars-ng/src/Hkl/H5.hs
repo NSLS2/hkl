@@ -11,7 +11,7 @@
 
 
 {-
-    Copyright  : Copyright (C) 2014-2025 Synchrotron SOLEIL
+    Copyright  : Copyright (C) 2014-2026 Synchrotron SOLEIL
                                          L'Orme des Merisiers Saint-Aubin
                                          BP 48 91192 GIF-sur-YVETTE CEDEX
     License    : GPL3+
@@ -155,10 +155,10 @@ createDataspaceFromShape sh = createSimpleDataspace [HSize (fromIntegral s) | s 
 castToVector :: (Shape sh, Storable e) => Array F sh e -> Vector e
 castToVector arr = unsafeFromForeignPtr0 (toForeignPtr arr) (size . extent $ arr)
 
-getArrayInBuffer :: (NativeType t, Shape sh) => IOVector t -> Detector a sh -> Dataset -> Int -> IO (IOVector t)
-getArrayInBuffer arr det d n = withDataspace (getDatasetSpace d) $ \dataspace ->
+getArrayInBuffer :: (NativeType t, Shape sh1, Shape sh2, Show sh2) => IOVector t -> Detector a sh1 -> Dataset -> sh2 -> IO (IOVector t)
+getArrayInBuffer arr det d i = withDataspace (getDatasetSpace d) $ \dataspace ->
   do let s = shape det
-         h = (HSize (fromIntegral n), Nothing,  HSize 1, Nothing) : shapeAsRangeToHyperslab s
+         h = shapeAsCoordinateToHyperslab i ++ shapeAsRangeToHyperslab s
      selectHyperslab dataspace Set h
      withDataspace (createDataspaceFromShape s) $ \memspace ->
        do readDatasetInto d (Just memspace) (Just dataspace) Nothing arr
@@ -189,8 +189,13 @@ getPosition' dataset' h =
         readDatasetInto dataset' (Just memspace) (Just dataspace) Nothing data_out
         freeze data_out
 
-getPositionNew :: Shape sh => Dataset -> sh -> IO (Vector Double)
-getPositionNew dataset' s = getPosition' dataset' (shapeAsCoordinateToHyperslab s)
+getPositionNew :: (NativeType t, RealFloat t, Shape sh) => Dataset -> sh -> IO t
+getPositionNew dataset' s = do
+  v <- getPosition' dataset' (shapeAsCoordinateToHyperslab s)
+  let v' = head v
+  if isNaN v'
+    then throwIO ContainNanValue
+    else return v'
 
 getPosition :: (NativeType t, RealFloat t) => Dataset -> Int -> IO t
 getPosition dataset' n = do

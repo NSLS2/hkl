@@ -61,14 +61,16 @@ import           Hkl.Types
 -- class ChunkP
 
 class ChunkP a where
-  chunkP :: MonadSafe m => Maybe Int -> Maybe Int -> a -> Pipe ScanFilePath (Chunk Int ScanFilePath) m ()
+  chunkP :: MonadSafe m => Maybe Int -> Maybe Int -> a -> Pipe ScanFilePath ((Chunk Int ScanFilePath), DataSourceShape) m ()
 
-clippedChunk :: Maybe Int -> Maybe Int -> ScanFilePath -> DataSourceShape -> Chunk Int ScanFilePath
-clippedChunk mSkipFirst mSkipLast sfp sh = case sh of
-                 DataSourceShape'Range (Z :. f) (Z :. t) ->
-                     cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
-                 DataSourceShape'Range'DIM2 (Z :. f) (Z :. t) ->
-                     cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
+clippedChunk :: Maybe Int -> Maybe Int -> ScanFilePath -> DataSourceShape -> (Chunk Int ScanFilePath, DataSourceShape)
+clippedChunk mSkipFirst mSkipLast sfp sh = (c, sh)
+    where
+      c = case sh of
+            DataSourceShape'Range (Z :. f) (Z :. t) ->
+                cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
+            DataSourceShape'Range'DIM2 (Z :. f) (Z :. t) _ ->
+                cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
 
 -- class FramesP
 class ChunkP a => FramesP a b where

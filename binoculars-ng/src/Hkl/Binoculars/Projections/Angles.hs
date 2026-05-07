@@ -190,15 +190,16 @@ processAnglesP = do
   filenames <- InputFn'List <$> files nexusDir inputRange tmpl
   pixels <- liftIO $ getPixelsCoordinates det centralPixel' sampleDetectorDistance detrot Normalisation
   let fns = concatMap (replicate 1) (toList filenames)
-  chunks <- liftIO $ runSafeT $ toListM $ each fns >-> chunkP mSkipFirstPoints mSkipLastPoints datapaths
-  let ntot = sum (Prelude.map clength chunks)
+  chunks' <- liftIO $ runSafeT $ toListM $ each fns >-> chunkP mSkipFirstPoints mSkipLastPoints datapaths
+  let chunks = Prelude.map fst chunks'
+  let ntot = sum (Prelude.map csize chunks')
   let jobs = chunk (quot ntot cap) chunks
 
   -- log parameters
 
   logDebugNSH filenames
   logDebugNSH datapaths
-  logDebugNSH chunks
+  logDebugNSH chunks'
   logDebugN "start gessing final cube size"
 
   -- guess the final cube dimensions (To optimize, do not create the cube, just extract the shape)

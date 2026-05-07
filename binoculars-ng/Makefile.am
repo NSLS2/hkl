@@ -117,13 +117,13 @@ EXTRA_DIST = $(binoculars_ng_SOURCES) $(test_sources)
 # local tests #
 ###############
 
-# RTS = +RTS -N4 -RTS
+#RTS = +RTS -N4 -RTS
 RTS =
 RUN_LIBTOOL = $(LIBTOOL) --mode=execute -dlopen $(top_builddir)/hkl/libhkl.la
 RUN = $(RUN_LIBTOOL) /usr/bin/time -v ./binoculars-ng $(RTS)
 RUN_DBG = $(RUN_LIBTOOL) gdb --args
-PROCESS = $(RUN) process
-#PROCESS = $(RUN) --debug process
+#PROCESS = $(RUN) process
+PROCESS = $(RUN) --debug process
 PROCESS_DBG=$(RUN_DBG) ./binoculars-ng process
 MERGE = $(RUN) --debug merge
 MERGE_DBG = $(RUN_DBG) ./binoculars-ng merge

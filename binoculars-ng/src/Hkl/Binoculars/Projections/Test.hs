@@ -96,6 +96,12 @@ instance Is1DStreamable (DSDataFrameTest DSAcq) DataFrameTest where
       <$> extract1DStreamValue q i
       <*> extract0DStreamValue s
 
+instance Is2DStreamable (DSDataFrameTest DSAcq) DataFrameTest where
+    extract2DStreamValue (DSDataFrameTest q s) i =
+      DataFrameTest
+      <$> extract2DStreamValue q i
+      <*> extract0DStreamValue s
+
 instance HasFieldComment [DSDataFrameTest DSPath] where
   fieldComment _ = [ "`datapath` internal value used to find the data in the data file."
                    , ""
@@ -230,15 +236,16 @@ processTestP = do
   pixels <- liftIO $ getPixelsCoordinates det centralPixel' sampleDetectorDistance detrot NoNormalisation
 
   let fns = concatMap (replicate 1) (toList filenames)
-  chunks <- liftIO $ runSafeT $ toListM $ each fns >-> chunkP mSkipFirstPoints mSkipLastPoints datapaths
-  let ntot = sum (Prelude.map clength chunks)
+  chunks' <- liftIO $ runSafeT $ toListM $ each fns >-> chunkP mSkipFirstPoints mSkipLastPoints datapaths
+  let chunks = Prelude.map fst chunks'
+  let ntot = sum (Prelude.map csize chunks')
   let jobs = chunk (quot ntot cap) chunks
 
   -- log parameters
 
   logDebugNSH filenames
   logDebugNSH datapaths
-  logDebugNSH chunks
+  logDebugNSH chunks'
   logDebugN "start gessing final cube size"
 
   -- guess the final cube dimensions (To optimize, do not create the cube, just extract the shape)
@@ -276,9 +283,8 @@ instance ChunkP [DSDataFrameTest DSPath] where
         skipMalformed $ forever $ do
           sfp <- await
           withScanFileP sfp $ \f' ->
-              withDataSourcesP f' ps $ \p p' ->
-              do liftIO $ print p
-                 sh <- ds'Shape p'
+              withDataSourcesP f' ps $ \_p p' ->
+              do sh <- ds'Shape p'
                  yield $ clippedChunk mSkipFirst mSkipLast sfp sh
 
 instance FramesP [DSDataFrameTest DSPath] DataFrameTest where
@@ -286,8 +292,11 @@ instance FramesP [DSDataFrameTest DSPath] DataFrameTest where
     (fp, js) <- await
     withScanFileP fp $ \f ->
       withDataSourcesP f ps $ \_p p' ->
-      forM_ js (tryYield . extract1DStreamValue p')
-
+          do sh <- ds'Shape p'
+             case sh of
+               DataSourceShape'Range _ _ -> forM_ js (tryYield . extract1DStreamValue p')
+               DataSourceShape'Range'DIM2 _ _ (Z :. ks) -> forM_ js (\j -> forM_ [0..ks-1]
+                                                                    (\k -> do tryYield $ extract2DStreamValue p' (ix2 j k)))
 ------------
 -- Inputs --
 ------------

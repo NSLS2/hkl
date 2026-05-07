@@ -120,8 +120,19 @@ instance Is1DStreamable (DSDataFrameQCustom DSAcq) DataFrameQCustom where
       <$> extract1DStreamValue att i
       <*> extract1DStreamValue geom i
       <*> extract1DStreamValue img i
-      <*> extract1DStreamValue msk i
+      <*> extract0DStreamValue msk
       <*> extract1DStreamValue idx i
+      <*> extract0DStreamValue t0
+      <*> extract0DStreamValue s
+
+instance Is2DStreamable (DSDataFrameQCustom DSAcq) DataFrameQCustom where
+    extract2DStreamValue (DataSource'DataFrameQCustom att geom img msk idx t0 s) i =
+      DataFrameQCustom
+      <$> extract2DStreamValue att i
+      <*> extract2DStreamValue geom i
+      <*> extract2DStreamValue img i
+      <*> extract0DStreamValue msk
+      <*> extract2DStreamValue idx i
       <*> extract0DStreamValue t0
       <*> extract0DStreamValue s
 
@@ -931,14 +942,15 @@ processQCustomP = do
   -- compute the jobs
 
   let fns = concatMap (replicate 1) (toList filenames)
-  chunks <- liftIO $ runSafeT $ toListM $ each fns >-> chunkP mSkipFirstPoints mSkipLastPoints datapaths
-  let ntot = sum (Prelude.map clength chunks)
+  chunks' <- liftIO $ runSafeT $ toListM $ each fns >-> chunkP mSkipFirstPoints mSkipLastPoints datapaths
+  let chunks = Prelude.map fst chunks'
+  let ntot = sum (Prelude.map csize chunks')
   let jobs = chunk (quot ntot cap) chunks
 
   -- log parameters
 
   logDebugNSH datapaths
-  logDebugNSH chunks
+  logDebugNSH chunks'
   logDebugNSH ntot
   logDebugNSH jobs
   logDebugN "start gessing final cube size"
@@ -978,9 +990,8 @@ instance ChunkP [DSDataFrameQCustom DSPath] where
         skipMalformed $ forever $ do
           sfp <- await
           withScanFileP sfp $ \f' ->
-              withDataSourcesP f' ps $ \p p' ->
-                  do liftIO $ print p
-                     sh <- ds'Shape p'
+              withDataSourcesP f' ps $ \_p p' ->
+                  do sh <- ds'Shape p'
                      yield $ clippedChunk mSkipFirst mSkipLast sfp sh
 
 instance FramesP [DSDataFrameQCustom DSPath] DataFrameQCustom where
@@ -989,7 +1000,11 @@ instance FramesP [DSDataFrameQCustom DSPath] DataFrameQCustom where
           (fp, js) <- await
           withScanFileP fp $ \f ->
             withDataSourcesP f ps $ \_p p' ->
-                forM_ js (tryYield . extract1DStreamValue p')
+                do sh <- ds'Shape p'
+                   case sh of
+                     DataSourceShape'Range _ _ -> forM_ js (tryYield . extract1DStreamValue p')
+                     DataSourceShape'Range'DIM2 _ _ (Z :. ks) -> forM_ [0..ks-1] (\k -> forM_ js
+                                                                                 (\j -> do tryYield $ extract2DStreamValue p' (ix2 j k)))
 
 ---------
 -- Cmd --
