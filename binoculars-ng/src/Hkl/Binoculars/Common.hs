@@ -62,6 +62,7 @@ cweight (Chunk _ l h) = h - l
 csplit :: Num n => Chunk n a -> n -> (Chunk n a, Chunk n a)
 csplit (Chunk a l h) n = (Chunk a l (l + n), Chunk a (l+n) h)
 
+{-# SPECIALIZE chunk :: Int -> [Chunk Int ScanFilePath] -> [[Chunk Int ScanFilePath]]  #-}
 chunk :: (Num n, Ord n) => n -> [Chunk n a] -> [[Chunk n a]]
 chunk target = go target target
   where
@@ -80,8 +81,6 @@ chunk target = go target target
       if | 0 == gap                 -> [[x]]
          | cweight x <= gap         -> [[x]]
          | (x1, x2) <- csplit x gap -> [x1] : golast tgt tgt x2
-
-{-# SPECIALIZE chunk :: Int -> [Chunk Int ScanFilePath] -> [[Chunk Int ScanFilePath]]  #-}
 
 --  DataFrameSpace
 

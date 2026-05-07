@@ -945,7 +945,8 @@ processQCustomP = do
   chunks' <- liftIO $ runSafeT $ toListM $ each fns >-> chunkP mSkipFirstPoints mSkipLastPoints datapaths
   let chunks = Prelude.map fst chunks'
   let ntot = sum (Prelude.map csize chunks')
-  let jobs = chunk (quot ntot cap) chunks
+  let ndim1 = sum (Prelude.map clength chunks)
+  let jobs = chunk (quot ndim1 cap) chunks
 
   -- log parameters
 
@@ -975,7 +976,7 @@ processQCustomP = do
     r' <- mapConcurrently (\job -> withCubeAccumulator guessed $ \c ->
                              runSafeT $ runEffect $
                              each job
-                             >-> Pipes.Prelude.map (\(Chunk fn f t) -> (fn, [f..t]))
+                             >-> Pipes.Prelude.map (\(Chunk fn f t) -> (fn, [f..t-1]))
                              >-> framesP datapaths
                              >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ img _ _ _ _) -> filterSumImage mImageSumMax img)
                              >-> project det 3 (spaceQCustom det pixels res surfaceOrientation mlimits subprojection uqx uqy uqz mSampleAxis doPolarizationCorrection mdmask)
