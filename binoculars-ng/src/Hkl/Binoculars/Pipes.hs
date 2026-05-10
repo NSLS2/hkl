@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds             #-}
-{-# LANGUAGE DefaultSignatures     #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -22,7 +21,6 @@ module Hkl.Binoculars.Pipes
   , ChunkP(..)
   , FramesP(..)
   , accumulateP
-  , clippedChunk
   , progress
   , project
   , skipMalformed
@@ -64,16 +62,6 @@ import           Hkl.Types
 
 -- class ChunkP
 
-clippedChunk :: Maybe Int -> Maybe Int -> ScanFilePath -> DataSourceShape -> (Chunk Int ScanFilePath, DataSourceShape)
-clippedChunk mSkipFirst mSkipLast sfp sh = (c, sh)
-    where
-      c = case sh of
-            DataSourceShape'Range (Z :. f) (Z :. t) ->
-                cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
-            DataSourceShape'Range'DIM2 (Z :. f) (Z :. t) _ ->
-                cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
-
-
 class DataSource d => ChunkP d where
   chunkP :: ( MonadSafe m
            , Show (d DSPath)
@@ -86,20 +74,13 @@ class DataSource d => ChunkP d where
                  withScanFileP sfp $ \f' ->
                      withDataSourcesP f' ps $ \_p p' ->
                          do sh <- ds'Shape p'
-                            yield $ clippedChunk mSkipFirst mSkipLast sfp sh
+                            yield $ case sh of
+                                      DataSourceShape'Range (Z :. f) (Z :. t) ->
+                                          (cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1)), sh)
+                                      DataSourceShape'Range'DIM2 (Z :. f) (Z :. t) _ ->
+                                          (cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1)), sh)
 
 -- class FramesP
-
-iterate' :: ( DataSource d, MonadSafe m,
-             Is1DStreamable (d DSAcq) r,
-             Is2DStreamable (d DSAcq) r
-           ) => [Int] -> d DSAcq -> Proxy x' x () r m ()
-iterate' js p' = do
-  sh <- ds'Shape p'
-  case sh of
-    DataSourceShape'Range _ _ -> forM_ js (tryYield . extract1DStreamValue p')
-    DataSourceShape'Range'DIM2 _ _ (Z :. ks) -> forM_ [0..ks-1] (\k -> forM_ js
-                                                                (\j -> do tryYield $ extract2DStreamValue p' (ix2 j k)))
 
 class ChunkP d => FramesP d b where
     framesP :: ( Is1DStreamable (d DSAcq) b
@@ -110,11 +91,16 @@ class ChunkP d => FramesP d b where
               )
               => [d DSPath] -> Pipe (ScanFilePath, [Int]) b m ()
     framesP ps =
-        skipMalformed $ forever $ do
-                               (fp, js) <- await
-                               withScanFileP fp $ \f ->
-                                  withDataSourcesP f ps $ \_p p' -> iterate' js p'
-
+        skipMalformed $ forever $
+        do (fp, js) <- await
+           withScanFileP fp $ \f ->
+               withDataSourcesP f ps $ \_p p' ->
+                   do sh <- ds'Shape p'
+                      case sh of
+                        DataSourceShape'Range _ _ ->
+                            forM_ js (tryYield . extract1DStreamValue p')
+                        DataSourceShape'Range'DIM2 _ _ (Z :. ks) ->
+                            forM_ [0..ks-1] (\k -> forM_ js (\j -> do tryYield $ extract2DStreamValue p' (ix2 j k)))
 
 -- Project
 
