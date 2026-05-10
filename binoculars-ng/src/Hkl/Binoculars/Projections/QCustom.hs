@@ -39,7 +39,6 @@ module Hkl.Binoculars.Projections.QCustom
     ) where
 
 import           Control.Concurrent.Async          (mapConcurrently)
-import           Control.Monad                     (forM_, forever)
 import           Control.Monad.Catch               (MonadThrow)
 import           Control.Monad.IO.Class            (MonadIO (liftIO))
 import           Control.Monad.Logger              (MonadLogger, logDebugN,
@@ -59,8 +58,7 @@ import           GHC.Generics                      (Generic)
 import           Numeric.Units.Dimensional.Prelude (Angle, degree, radian, (*~),
                                                     (/~))
 import           Path                              (Abs, Dir, Path)
-import           Pipes                             (await, each, runEffect,
-                                                    yield, (>->))
+import           Pipes                             (each, runEffect, (>->))
 import           Pipes.Prelude                     (filter, map, tee, toListM)
 import           Pipes.Safe                        (runSafeT)
 import           Text.Printf                       (printf)
@@ -109,10 +107,13 @@ data DSDataFrameQCustom (k :: DSKind)
       (DSWrap_ DSScannumber k)
     deriving Generic
 
+instance ChunkP DSDataFrameQCustom
 instance DataSource DSDataFrameQCustom
-deriving instance Show (DSDataFrameQCustom DSPath)
+instance FramesP DSDataFrameQCustom DataFrameQCustom
 instance FromJSON (DSDataFrameQCustom DSPath)
+deriving instance Show (DSDataFrameQCustom DSPath)
 instance ToJSON (DSDataFrameQCustom DSPath)
+
 
 instance Is1DStreamable (DSDataFrameQCustom DSAcq) DataFrameQCustom where
     extract1DStreamValue (DataSource'DataFrameQCustom att geom img msk idx t0 s) i =
@@ -985,27 +986,6 @@ processQCustomP = do
                          ) jobs
     saveCube output' (unpack . serializeConfig $ conf) r'
 
-
-instance ChunkP [DSDataFrameQCustom DSPath] where
-    chunkP mSkipFirst mSkipLast ps =
-        skipMalformed $ forever $ do
-          sfp <- await
-          withScanFileP sfp $ \f' ->
-              withDataSourcesP f' ps $ \_p p' ->
-                  do sh <- ds'Shape p'
-                     yield $ clippedChunk mSkipFirst mSkipLast sfp sh
-
-instance FramesP [DSDataFrameQCustom DSPath] DataFrameQCustom where
-    framesP ps =
-        skipMalformed $ forever $ do
-          (fp, js) <- await
-          withScanFileP fp $ \f ->
-            withDataSourcesP f ps $ \_p p' ->
-                do sh <- ds'Shape p'
-                   case sh of
-                     DataSourceShape'Range _ _ -> forM_ js (tryYield . extract1DStreamValue p')
-                     DataSourceShape'Range'DIM2 _ _ (Z :. ks) -> forM_ [0..ks-1] (\k -> forM_ js
-                                                                                 (\j -> do tryYield $ extract2DStreamValue p' (ix2 j k)))
 
 ---------
 -- Cmd --

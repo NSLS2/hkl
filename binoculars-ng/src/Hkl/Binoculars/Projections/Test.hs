@@ -29,7 +29,6 @@ module Hkl.Binoculars.Projections.Test
     ) where
 
 import           Control.Concurrent.Async           (mapConcurrently)
-import           Control.Monad                      (forM_, forever)
 import           Control.Monad.Catch                (MonadThrow)
 import           Control.Monad.IO.Class             (MonadIO (liftIO))
 import           Control.Monad.Logger               (MonadLogger, logDebugN,
@@ -46,8 +45,7 @@ import           Foreign.ForeignPtr                 (withForeignPtr)
 import           Foreign.Marshal.Utils              (fromBool)
 import           GHC.Generics                       (Generic)
 import           Path                               (Abs, Dir, Path)
-import           Pipes                              (await, each, runEffect,
-                                                     yield, (>->))
+import           Pipes                              (each, runEffect, (>->))
 import           Pipes.Prelude                      (filter, map, tee, toListM)
 import           Pipes.Safe                         (runSafeP, runSafeT)
 import           Text.Printf                        (printf)
@@ -85,10 +83,12 @@ data DSDataFrameTest (k :: DSKind)
     }
   deriving (Generic)
 
-deriving instance Show (DSDataFrameTest DSPath)
+instance ChunkP DSDataFrameTest where
+instance DataSource DSDataFrameTest
+instance FramesP DSDataFrameTest DataFrameTest
 instance FromJSON (DSDataFrameTest DSPath)
 instance ToJSON (DSDataFrameTest DSPath)
-instance DataSource DSDataFrameTest
+deriving instance Show (DSDataFrameTest DSPath)
 
 instance Is1DStreamable (DSDataFrameTest DSAcq) DataFrameTest where
     extract1DStreamValue (DSDataFrameTest q s) i =
@@ -276,27 +276,6 @@ processTestP = do
                          ) jobs
     saveCube output' (unpack . serializeConfig $ conf) r'
 
--- FramesTestP
-
-instance ChunkP [DSDataFrameTest DSPath] where
-    chunkP mSkipFirst mSkipLast ps =
-        skipMalformed $ forever $ do
-          sfp <- await
-          withScanFileP sfp $ \f' ->
-              withDataSourcesP f' ps $ \_p p' ->
-              do sh <- ds'Shape p'
-                 yield $ clippedChunk mSkipFirst mSkipLast sfp sh
-
-instance FramesP [DSDataFrameTest DSPath] DataFrameTest where
-  framesP ps = skipMalformed $ forever $ do
-    (fp, js) <- await
-    withScanFileP fp $ \f ->
-      withDataSourcesP f ps $ \_p p' ->
-          do sh <- ds'Shape p'
-             case sh of
-               DataSourceShape'Range _ _ -> forM_ js (tryYield . extract1DStreamValue p')
-               DataSourceShape'Range'DIM2 _ _ (Z :. ks) -> forM_ js (\j -> forM_ [0..ks-1]
-                                                                    (\k -> do tryYield $ extract2DStreamValue p' (ix2 j k)))
 ------------
 -- Inputs --
 ------------

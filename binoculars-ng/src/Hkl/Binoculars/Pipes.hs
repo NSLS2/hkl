@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DefaultSignatures     #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -30,11 +32,12 @@ module Hkl.Binoculars.Pipes
   , withScanFileP
   ) where
 
-import           Control.Monad              (forever)
+import           Control.Monad              (forM_, forever)
 import           Control.Monad.Catch        (tryJust)
 import           Control.Monad.IO.Class     (MonadIO (liftIO))
 import           Data.IORef                 (IORef, readIORef)
 import           Data.Maybe                 (fromMaybe)
+import           Data.Typeable              (Typeable)
 import           Path                       (toFilePath)
 import           Pipes                      (Consumer, Pipe, Proxy, await,
                                              yield)
@@ -58,10 +61,8 @@ import           Hkl.Pipes
 import           Hkl.Repa
 import           Hkl.Types
 
--- class ChunkP
 
-class ChunkP a where
-  chunkP :: MonadSafe m => Maybe Int -> Maybe Int -> a -> Pipe ScanFilePath ((Chunk Int ScanFilePath), DataSourceShape) m ()
+-- class ChunkP
 
 clippedChunk :: Maybe Int -> Maybe Int -> ScanFilePath -> DataSourceShape -> (Chunk Int ScanFilePath, DataSourceShape)
 clippedChunk mSkipFirst mSkipLast sfp sh = (c, sh)
@@ -72,10 +73,48 @@ clippedChunk mSkipFirst mSkipLast sfp sh = (c, sh)
             DataSourceShape'Range'DIM2 (Z :. f) (Z :. t) _ ->
                 cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1))
 
+
+class DataSource d => ChunkP d where
+  chunkP :: ( MonadSafe m
+           , Show (d DSPath)
+           , Typeable d
+           ) => Maybe Int -> Maybe Int -> [d DSPath] -> Pipe ScanFilePath ((Chunk Int ScanFilePath), DataSourceShape) m ()
+
+  chunkP mSkipFirst mSkipLast ps =
+      skipMalformed $ forever $ do
+                 sfp <- await
+                 withScanFileP sfp $ \f' ->
+                     withDataSourcesP f' ps $ \_p p' ->
+                         do sh <- ds'Shape p'
+                            yield $ clippedChunk mSkipFirst mSkipLast sfp sh
+
 -- class FramesP
-class ChunkP a => FramesP a b where
-  framesP :: MonadSafe m
-          => a -> Pipe (ScanFilePath, [Int]) b m ()
+
+iterate' :: ( DataSource d, MonadSafe m,
+             Is1DStreamable (d DSAcq) r,
+             Is2DStreamable (d DSAcq) r
+           ) => [Int] -> d DSAcq -> Proxy x' x () r m ()
+iterate' js p' = do
+  sh <- ds'Shape p'
+  case sh of
+    DataSourceShape'Range _ _ -> forM_ js (tryYield . extract1DStreamValue p')
+    DataSourceShape'Range'DIM2 _ _ (Z :. ks) -> forM_ [0..ks-1] (\k -> forM_ js
+                                                                (\j -> do tryYield $ extract2DStreamValue p' (ix2 j k)))
+
+class ChunkP d => FramesP d b where
+    framesP :: ( Is1DStreamable (d DSAcq) b
+              , Is2DStreamable (d DSAcq) b
+              , MonadSafe m
+              , Show (d DSPath)
+              , Typeable d
+              )
+              => [d DSPath] -> Pipe (ScanFilePath, [Int]) b m ()
+    framesP ps =
+        skipMalformed $ forever $ do
+                               (fp, js) <- await
+                               withScanFileP fp $ \f ->
+                                  withDataSourcesP f ps $ \_p p' -> iterate' js p'
+
 
 -- Project
 
