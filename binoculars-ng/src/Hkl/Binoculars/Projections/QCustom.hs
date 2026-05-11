@@ -962,7 +962,7 @@ processQCustomP = do
   guessed <- liftIO $ withCubeAccumulator EmptyCube $ \c ->
     runSafeT $ runEffect $
     each chunks
-    >-> Pipes.Prelude.map (\(Chunk fn f t) -> (fn, [f, quot (f + t) 4, quot (f + t) 4 * 2, quot (f + t) 4 * 3, t]))
+    >-> Pipes.Prelude.map quadChunk
     >-> framesP datapaths
     >-> project det 3 (spaceQCustom det pixels res surfaceOrientation mlimits subprojection uqx uqy uqz mSampleAxis doPolarizationCorrection mdmask)
     >-> accumulateP c
@@ -977,7 +977,7 @@ processQCustomP = do
     r' <- mapConcurrently (\job -> withCubeAccumulator guessed $ \c ->
                              runSafeT $ runEffect $
                              each job
-                             >-> Pipes.Prelude.map (\(Chunk fn f t) -> (fn, [f..t-1]))
+                             >-> Pipes.Prelude.map allChunk
                              >-> framesP datapaths
                              >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ img _ _ _ _) -> filterSumImage mImageSumMax img)
                              >-> project det 3 (spaceQCustom det pixels res surfaceOrientation mlimits subprojection uqx uqy uqz mSampleAxis doPolarizationCorrection mdmask)

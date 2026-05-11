@@ -76,9 +76,9 @@ class DataSource d => ChunkP d where
                          do sh <- ds'Shape p'
                             yield $ case sh of
                                       DataSourceShape'Range (Z :. f) (Z :. t) ->
-                                          (cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1)), sh)
+                                          (cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f t), sh)
                                       DataSourceShape'Range'DIM2 (Z :. f) (Z :. t) _ ->
-                                          (cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f (t - 1)), sh)
+                                          (cclip (fromMaybe 0 mSkipFirst) (fromMaybe 0 mSkipLast) (Chunk sfp f t), sh)
 
 -- class FramesP
 

@@ -17,6 +17,8 @@ module Hkl.Binoculars.Common
   , DataFrameSpace(..)
   , InputFn(..)
   , addSpace
+  , allChunk
+  , quadChunk
   , chunk
   , csize
   , cclip
@@ -40,8 +42,9 @@ import           Hkl.Orphan                 ()
 import           Hkl.Repa
 import           Hkl.Types
 
-data Chunk n a = Chunk !a !n !n
-deriving instance (Show n, Show a) => Show (Chunk n a)
+data Chunk n a
+    = Chunk !a !n !n
+    deriving (Eq, Show)
 
 {-# SPECIALIZE cclip :: Int -> Int -> Chunk Int ScanFilePath -> Chunk Int ScanFilePath #-}
 cclip :: (Num n, Ord n) => n -> n -> Chunk n a -> Chunk n a
@@ -49,9 +52,17 @@ cclip skipL skipH (Chunk a l h) = let nl = if l + skipL > h then l else l + skip
                                       nh = if h - skipH < l then h else h - skipH
                                   in Chunk a nl nh
 
-{-# SPECIALIZE clength :: Chunk Int FilePath -> Int  #-}
+{-# SPECIALIZE allChunk :: Chunk Int ScanFilePath -> (ScanFilePath, [Int])  #-}
+allChunk :: (Integral n, Enum n, Num n, Ord n) => Chunk n a -> (a, [n])
+allChunk (Chunk n f t) = (n, [f..t-1])
+
+{-# SPECIALIZE quadChunk :: Chunk Int ScanFilePath -> (ScanFilePath, [Int])  #-}
+quadChunk :: (Integral n, Enum n, Num n, Ord n) => Chunk n a -> (a, [n])
+quadChunk (Chunk n f t) = (n, [f, quot (f + t) 4, quot (f + t) 4 * 2, quot (f + t) 4 * 3, t-1])
+
+{-# SPECIALIZE clength :: Chunk Int ScanFilePath -> Int  #-}
 clength :: Num n => Chunk n a -> n
-clength (Chunk _ l h) = h - l + 1
+clength (Chunk _ l h) = h - l
 
 csize :: (Chunk Int a, DataSourceShape) -> Int
 csize (_, s) = size'DataSourceShape s

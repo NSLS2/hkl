@@ -253,7 +253,7 @@ processTestP = do
   guessed <- liftIO $ withCubeAccumulator EmptyCube $ \c ->
     runSafeT $ runEffect $
     each chunks
-    >-> Pipes.Prelude.map (\(Chunk fn f t) -> (fn, [f, quot (f + t) 4, quot (f + t) 4 * 2, quot (f + t) 4 * 3, t]))
+    >-> Pipes.Prelude.map quadChunk
     >-> framesP datapaths
     >-> project det 3 (spaceTest det pixels res mlimits doPolarizationCorrection mdmask)
     >-> accumulateP c
@@ -266,7 +266,7 @@ processTestP = do
     r' <- mapConcurrently (\job -> withCubeAccumulator guessed $ \c ->
                              runEffect $ runSafeP $
                              each job
-                             >-> Pipes.Prelude.map (\(Chunk fn f t) -> (fn, [f..t]))
+                             >-> Pipes.Prelude.map allChunk
                              -- >-> tee Pipes.Prelude.print
                              >-> framesP datapaths
                              >-> Pipes.Prelude.filter (\(DataFrameTest (DataFrameQCustom _ _ img _ _ _ _) _) -> filterSumImage mImageSumMax img)

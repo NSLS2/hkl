@@ -44,16 +44,17 @@ pro = process (Just "toto") (Just (ConfigRange (InputRange (singleton 120) :| [I
 spec :: Spec
 spec = do
 
-  -------------
-  -- RLimits --
-  -------------
+  -----------
+  -- Chunk --
+  -----------
 
-  describe "Limits" $ do
-    prop "quickcheck Limits2" $
-      \x -> (parseOnly fieldParser . fieldEmitter $ x) `shouldBe` Right (x :: RLimits DIM2)
-
-    prop "quickcheck Limits3" $
-      \x -> (parseOnly fieldParser . fieldEmitter $ x) `shouldBe` Right (x :: RLimits DIM3)
+  describe "Chunk" $ do
+         let fn = "toto" :: String
+         let c = [Chunk fn 0 100]
+         let n = 25 :: Int
+         let e = [[Chunk fn 0 25], [Chunk fn 25 50], [Chunk fn 50 75], [Chunk fn 75 100]]
+         it ("chunk : " <> show c <> " into chunks of lenght " <> show n) $ do
+                       chunk n c `shouldBe` e
 
   -----------------
   -- ConfigRange --
@@ -169,6 +170,17 @@ spec = do
 
     it'geometry'left "[geometry]\ngeometry_sample=omega chi phi\ngeometry_detector=tth\naxis_omega=rotation 0 -1 0 degree\naxis_chi=rotation 1 0 0 toto\naxis_phi=rotation 0 -1 0 degree\naxis_tth=rotation 0 -1 0 degree\n"
        "Line 5, in section \"geometry\": Failed reading: unknown unit 'toto' only supported are 'ua' 'degree' 'millimeter'"
+
+  -------------
+  -- RLimits --
+  -------------
+
+  describe "Limits" $ do
+    prop "quickcheck Limits2" $
+      \x -> (parseOnly fieldParser . fieldEmitter $ x) `shouldBe` Right (x :: RLimits DIM2)
+
+    prop "quickcheck Limits3" $
+      \x -> (parseOnly fieldParser . fieldEmitter $ x) `shouldBe` Right (x :: RLimits DIM3)
 
   --------------------
   -- Transformation --
