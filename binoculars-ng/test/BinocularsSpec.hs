@@ -20,7 +20,8 @@ import           Data.List.NonEmpty                 (NonEmpty (..))
 import           Data.Text                          (unpack)
 import           Data.Tree                          (Tree (..))
 import           Numeric.Interval                   (singleton, (...))
-import           Test.Hspec
+import           Test.Hspec                         (Spec, describe, it,
+                                                     shouldBe)
 import           Test.Hspec.Attoparsec              (shouldFailOn, shouldParse)
 import           Test.Hspec.Attoparsec.Source
 import           Test.Hspec.QuickCheck              (prop)
@@ -50,12 +51,16 @@ spec = do
   -----------
 
   describe "Chunk" $ do
+         let it'chunk c n e = it ("chunk : " <> show c <> " into chunks of lenght " <> show n) $ do
+                                chunk n c `shouldBe` e
+
          let fn = "toto" :: String
-         let c = [Chunk fn 0 100]
-         let n = 25 :: Int
-         let e = [[Chunk fn 0 25], [Chunk fn 25 50], [Chunk fn 50 75], [Chunk fn 75 100]]
-         it ("chunk : " <> show c <> " into chunks of lenght " <> show n) $ do
-                       chunk n c `shouldBe` e
+         let tests :: [([Chunk Int String], Int, [[Chunk Int String]])]
+             tests = [ ([Chunk fn 0 100], 25, [[Chunk fn 0 25], [Chunk fn 25 50], [Chunk fn 50 75], [Chunk fn 75 100]])
+                     , ([Chunk fn 0 100], 30, [[Chunk fn 0 30], [Chunk fn 30 60], [Chunk fn 60 90], [Chunk fn 90 100]])
+                     , ([Chunk fn 0 102], 53, [[Chunk fn 0 53], [Chunk fn 53 102]])
+                     ]
+         forM_ tests $ \(c, n, e) -> it'chunk c n e
 
   -----------------
   -- ConfigRange --
