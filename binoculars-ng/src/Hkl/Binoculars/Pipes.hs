@@ -52,6 +52,7 @@ import           Prelude                    hiding (filter)
 import           Hkl.Binoculars.Common
 import           Hkl.Binoculars.Projections
 import           Hkl.C.Binoculars
+import           Hkl.Chunk
 import           Hkl.DataSource
 import           Hkl.Detector
 import           Hkl.H5

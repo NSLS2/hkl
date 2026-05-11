@@ -57,6 +57,7 @@ import           Hkl.Binoculars.Projections
 import           Hkl.Binoculars.Projections.Config
 import           Hkl.Binoculars.Projections.QCustom
 import           Hkl.C.Binoculars
+import           Hkl.Chunk
 import           Hkl.DataSource
 import           Hkl.Detector
 import           Hkl.Geometry

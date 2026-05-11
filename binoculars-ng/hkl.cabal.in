@@ -103,6 +103,7 @@ library
   exposed-modules: Hkl.C
   exposed-modules: Hkl.C.Binoculars
   exposed-modules: Hkl.C.Hkl
+  exposed-modules: Hkl.Chunk
   exposed-modules: Hkl.DArray
   exposed-modules: Hkl.DataSource
   exposed-modules: Hkl.Detector

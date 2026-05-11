@@ -28,6 +28,7 @@ import           Test.Inspection
 
 import           Hkl.Binoculars
 import           Hkl.Binoculars.Projections.QCustom
+import           Hkl.Chunk
 import           Hkl.DataSource
 import           Hkl.Detector
 import           Hkl.Geometry
