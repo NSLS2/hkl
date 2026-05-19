@@ -92,6 +92,7 @@ data DataFrameQCustom
       Geometry -- geometry
       Image -- image
       (Maybe Mask) -- mask
+      Flat -- flat
       Timestamp -- timestamp in double
       Timescan0 -- timescan0 in double
       Scannumber -- scannumber in int
@@ -103,6 +104,7 @@ data DSDataFrameQCustom (k :: DSKind)
       (DSWrap_ DSGeometry k)
       (DSWrap_ DSImage k)
       (DSWrap_ DSMask k)
+      (DSWrap_ DSFlat k)
       (DSWrap_ DSTimestamp k)
       (DSWrap_ DSTimescan0 k)
       (DSWrap_ DSScannumber k)
@@ -117,23 +119,25 @@ instance ToJSON (DSDataFrameQCustom DSPath)
 
 
 instance Is1DStreamable (DSDataFrameQCustom DSAcq) DataFrameQCustom where
-    extract1DStreamValue (DataSource'DataFrameQCustom att geom img msk idx t0 s) i =
+    extract1DStreamValue (DataSource'DataFrameQCustom att geom img msk flat idx t0 s) i =
       DataFrameQCustom
       <$> extract1DStreamValue att i
       <*> extract1DStreamValue geom i
       <*> extract1DStreamValue img i
       <*> extract0DStreamValue msk
+      <*> extract0DStreamValue flat
       <*> extract1DStreamValue idx i
       <*> extract0DStreamValue t0
       <*> extract0DStreamValue s
 
 instance Is2DStreamable (DSDataFrameQCustom DSAcq) DataFrameQCustom where
-    extract2DStreamValue (DataSource'DataFrameQCustom att geom img msk idx t0 s) i =
+    extract2DStreamValue (DataSource'DataFrameQCustom att geom img msk flat idx t0 s) i =
       DataFrameQCustom
       <$> extract2DStreamValue att i
       <*> extract2DStreamValue geom i
       <*> extract2DStreamValue img i
       <*> extract0DStreamValue msk
+      <*> extract0DStreamValue flat
       <*> extract2DStreamValue idx i
       <*> extract0DStreamValue t0
       <*> extract0DStreamValue s
@@ -364,6 +368,16 @@ mk'Attenuation'Path inputtype mAttenuationCoefficient mAttenuationMax mAttenuati
                       SixsSbsUhv        -> sixs'Sbs
                       SixsSbsUhvGisaxs  -> sixs'Sbs
 
+
+-- Flat Path
+
+mk'Flat'Path :: Config Common -> DSWrap_ DSFlat DSPath
+mk'Flat'Path c
+    = [ let det = binocularsConfig'Common'Detector c
+        in case binocularsConfig'Common'Flatmatrix c of
+             Nothing -> DataSourcePath'Flat (FlatLocation "default") det
+             Just m  -> DataSourcePath'Flat m det
+      ]
 
 -- Geometry Path
 
@@ -829,6 +843,7 @@ guess'DataSource'DataFrameQCustom common msub cfg =
          ( mk'Geometry'Path inputtype mWavelength geometry cfg )
          ( mk'Image'Path inputtype mImage detector sn0 )
          ( mk'Mask'Path common )
+         ( mk'Flat'Path common )
          ( mk'Timestamp'Path inputtype msub )
          ( mk'Timescan0'Path inputtype msub )
          [ DataSourcePath'Scannumber ]
@@ -856,12 +871,13 @@ spaceQCustom :: Detector a DIM2
              -> Space DIM3
              -> DataFrameQCustom
              -> IO (DataFrameSpace DIM3)
-spaceQCustom det pixels rs surf mlimits subprojection uqx uqy uqz mSampleAxis polarisation mdmask space@(Space fSpace) (DataFrameQCustom att g img mmask index timescan0 scannumber) =
+spaceQCustom det pixels rs surf mlimits subprojection uqx uqy uqz mSampleAxis polarisation mdmask space@(Space fSpace) (DataFrameQCustom att g img mmask flat index timescan0 scannumber) =
   withGeometry g $ \c'geometry ->
   withForeignPtr (toForeignPtr pixels) $ \c'pix ->
   withForeignPtr fSpace $ \c'pSpace ->
   withMaybeDynamicMask mdmask $ \ c'dmask ->
   withMaybeMask mmask $ \ c'mask ->
+  withForeignPtr (toForeignPtr flat) $ \ c'flat ->
   withMaybeLimits mlimits rs $ \nlimits c'limits ->
   withMaybeSampleAxis mSampleAxis $ \c'sampleAxis ->
   withNPixels det $ \c'nPixels ->
@@ -882,13 +898,13 @@ spaceQCustom det pixels rs surf mlimits subprojection uqx uqy uqz mSampleAxis po
     let c'uqz = CDouble (uqz /~ radian)
     case img of
       (ImageDouble arr) -> unsafeWith arr $ \i -> do
-                                 {-# SCC "hkl_binoculars_space_qcustom_double" #-} c'hkl_binoculars_space_qcustom_double c'pSpace c'geometry i c'nPixels c'attenuation c'pix c'ndim c'dims c'r c'nr c'mask c'surf c'limits c'nlimits c'timestamp c'timescan0 c'scannumber c'subprojection c'uqx c'uqy c'uqz c'sampleAxis c'polarisation c'dmask
+                                 {-# SCC "hkl_binoculars_space_qcustom_double" #-} c'hkl_binoculars_space_qcustom_double c'pSpace c'geometry i c'nPixels c'attenuation c'flat c'pix c'ndim c'dims c'r c'nr c'mask c'surf c'limits c'nlimits c'timestamp c'timescan0 c'scannumber c'subprojection c'uqx c'uqy c'uqz c'sampleAxis c'polarisation c'dmask
       (ImageInt32 arr) -> unsafeWith arr $ \i -> do
-                                 {-# SCC "hkl_binoculars_space_qcustom_int32_t" #-} c'hkl_binoculars_space_qcustom_int32_t c'pSpace c'geometry i c'nPixels c'attenuation c'pix c'ndim c'dims c'r c'nr c'mask c'surf c'limits c'nlimits c'timestamp c'timescan0 c'scannumber c'subprojection c'uqx c'uqy c'uqz c'sampleAxis c'polarisation c'dmask
+                                 {-# SCC "hkl_binoculars_space_qcustom_int32_t" #-} c'hkl_binoculars_space_qcustom_int32_t c'pSpace c'geometry i c'nPixels c'attenuation c'flat c'pix c'ndim c'dims c'r c'nr c'mask c'surf c'limits c'nlimits c'timestamp c'timescan0 c'scannumber c'subprojection c'uqx c'uqy c'uqz c'sampleAxis c'polarisation c'dmask
       (ImageWord16 arr) -> unsafeWith arr $ \i -> do
-                                 {-# SCC "hkl_binoculars_space_qcustom_uint16_t" #-} c'hkl_binoculars_space_qcustom_uint16_t c'pSpace c'geometry i c'nPixels c'attenuation c'pix c'ndim c'dims c'r c'nr c'mask c'surf c'limits c'nlimits c'timestamp c'timescan0 c'scannumber c'subprojection c'uqx c'uqy c'uqz c'sampleAxis c'polarisation c'dmask
+                                 {-# SCC "hkl_binoculars_space_qcustom_uint16_t" #-} c'hkl_binoculars_space_qcustom_uint16_t c'pSpace c'geometry i c'nPixels c'attenuation c'flat c'pix c'ndim c'dims c'r c'nr c'mask c'surf c'limits c'nlimits c'timestamp c'timescan0 c'scannumber c'subprojection c'uqx c'uqy c'uqz c'sampleAxis c'polarisation c'dmask
       (ImageWord32 arr) -> unsafeWith arr $ \i -> do
-                                 {-# SCC "hkl_binoculars_space_qcustom_uint32_t" #-} c'hkl_binoculars_space_qcustom_uint32_t c'pSpace c'geometry i c'nPixels c'attenuation c'pix c'ndim c'dims c'r c'nr c'mask c'surf c'limits c'nlimits c'timestamp c'timescan0 c'scannumber c'subprojection c'uqx c'uqy c'uqz c'sampleAxis c'polarisation c'dmask
+                                 {-# SCC "hkl_binoculars_space_qcustom_uint32_t" #-} c'hkl_binoculars_space_qcustom_uint32_t c'pSpace c'geometry i c'nPixels c'attenuation c'flat c'pix c'ndim c'dims c'r c'nr c'mask c'surf c'limits c'nlimits c'timestamp c'timescan0 c'scannumber c'subprojection c'uqx c'uqy c'uqz c'sampleAxis c'polarisation c'dmask
 
     return (DataFrameSpace img space att)
 
@@ -980,7 +996,7 @@ processQCustomP = do
                              each job
                              >-> Pipes.Prelude.map allChunk
                              >-> framesP datapaths
-                             >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ img _ _ _ _) -> filterSumImage mImageSumMax img)
+                             >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ img _ _ _ _ _) -> filterSumImage mImageSumMax img)
                              >-> project det 3 (spaceQCustom det pixels res surfaceOrientation mlimits subprojection uqx uqy uqz mSampleAxis doPolarizationCorrection mdmask)
                              >-> tee (accumulateP c)
                              >-> progress pb

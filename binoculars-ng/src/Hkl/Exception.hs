@@ -18,6 +18,8 @@ data HklDetectorException
   = MaskShapeNotcompatible Text
   | NoDefaultMask
   | MaskInternalError
+  | NoDefaultFlat
+  | FlatShapeNotcompatible Text
   deriving (Show, Typeable)
 instance Exception HklDetectorException
 

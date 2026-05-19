@@ -131,9 +131,10 @@ getDataPath c
 
 {-# INLINE spaceAngles #-}
 spaceAngles :: Detector a DIM2 -> Array F DIM3 Double -> Resolutions DIM3 -> Maybe (RLimits DIM3) -> SampleAxis -> Space DIM2 -> DataFrameQCustom -> IO (DataFrameSpace DIM2)
-spaceAngles det pixels rs mlimits sAxis space@(Space fSpace) (DataFrameQCustom att g img mmask _ _ _) =
+spaceAngles det pixels rs mlimits sAxis space@(Space fSpace) (DataFrameQCustom att g img mmask flat _ _ _) =
   withNPixels det $ \nPixels ->
   withGeometry g $ \geometry ->
+  withForeignPtr (toForeignPtr flat) $ \c'flat ->
   withForeignPtr (toForeignPtr pixels) $ \pix ->
   withResolutions rs $ \nr r ->
   withPixelsDims pixels $ \ndim dims ->
@@ -143,13 +144,13 @@ spaceAngles det pixels rs mlimits sAxis space@(Space fSpace) (DataFrameQCustom a
   withForeignPtr fSpace $ \pSpace -> do
   case img of
     (ImageDouble arr) -> unsafeWith arr $ \i -> do
-      {-# SCC "hkl_binoculars_space_angles_double" #-} c'hkl_binoculars_space_angles_double pSpace geometry i nPixels (CDouble . unAttenuation $ att) pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) sampleAxis
+      {-# SCC "hkl_binoculars_space_angles_double" #-} c'hkl_binoculars_space_angles_double pSpace geometry i nPixels (CDouble . unAttenuation $ att) c'flat pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) sampleAxis
     (ImageInt32 arr) -> unsafeWith arr $ \i -> do
-      {-# SCC "hkl_binoculars_space_angles_int32_t" #-} c'hkl_binoculars_space_angles_int32_t pSpace geometry i nPixels (CDouble . unAttenuation $ att) pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) sampleAxis
+      {-# SCC "hkl_binoculars_space_angles_int32_t" #-} c'hkl_binoculars_space_angles_int32_t pSpace geometry i nPixels (CDouble . unAttenuation $ att) c'flat pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) sampleAxis
     (ImageWord16 arr) -> unsafeWith arr $ \i -> do
-      {-# SCC "hkl_binoculars_space_angles_uint16_t" #-} c'hkl_binoculars_space_angles_uint16_t pSpace geometry i nPixels (CDouble . unAttenuation $ att) pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) sampleAxis
+      {-# SCC "hkl_binoculars_space_angles_uint16_t" #-} c'hkl_binoculars_space_angles_uint16_t pSpace geometry i nPixels (CDouble . unAttenuation $ att) c'flat pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) sampleAxis
     (ImageWord32 arr) -> unsafeWith arr $ \i -> do
-      {-# SCC "hkl_binoculars_space_angles_uint32_t" #-} c'hkl_binoculars_space_angles_uint32_t pSpace geometry i nPixels (CDouble . unAttenuation $ att) pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) sampleAxis
+      {-# SCC "hkl_binoculars_space_angles_uint32_t" #-} c'hkl_binoculars_space_angles_uint32_t pSpace geometry i nPixels (CDouble . unAttenuation $ att) c'flat pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) sampleAxis
 
   return (DataFrameSpace img space att)
 
@@ -225,7 +226,7 @@ processAnglesP = do
                              each job
                              >-> Pipes.Prelude.map allChunk
                              >-> framesP datapaths
-                             >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ img _ _ _ _) -> filterSumImage mImageSumMax img)
+                             >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ img _ _ _ _ _) -> filterSumImage mImageSumMax img)
                              >-> project det 3 (spaceAngles det pixels res mlimits sampleAxis)
                              >-> tee (accumulateP c)
                              >-> progress pb

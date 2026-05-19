@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with the hkl library.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2003-2025 Synchrotron SOLEIL
+ * Copyright (C) 2003-2026 Synchrotron SOLEIL
  *                         L'Orme des Merisiers Saint-Aubin
  *                         BP 48 91192 GIF-sur-YVETTE CEDEX
  *
@@ -237,6 +237,19 @@ static double *coordinates_get_square(const struct shape_t *shape,
         return coordinates_rectangle(shape,
                                      square->pixel_size,
                                      square->pixel_size);
+}
+
+/* flat */
+
+static double *default_flat(const struct shape_t *shape)
+{
+	size_t i;
+	double *arr;
+
+        arr = g_new(double, shape_size(*shape));
+	for(i=0; i<shape_size(*shape); ++i) arr[i] = 1;
+
+	return arr;
 }
 
 /* masks */
@@ -547,6 +560,32 @@ void hkl_binoculars_detector_2d_coordinates_save(HklBinocularsDetectorEnum n,
 }
 
 
+double *hkl_binoculars_detector_2d_flat_get(HklBinocularsDetectorEnum n)
+{
+        const struct detector_t detector = get_detector(n);
+        double *arr;
+
+	arr = default_flat(&detector.shape);
+
+        return arr;
+}
+
+double *hkl_binoculars_detector_2d_flat_load(HklBinocularsDetectorEnum n,
+					     const char *fname)
+{
+        double *arr = NULL;
+        const struct detector_t detector = get_detector(n);
+        darray_int shape = darray_new();
+
+        darray_append(shape, detector.shape.height);
+        darray_append(shape, detector.shape.width);
+
+        arr = npy_load(fname, HklBinocularsNpyDouble(), &shape);
+
+        darray_free(shape);
+
+        return arr;
+};
 
 uint32_t *hkl_binoculars_detector_2d_fake_image_uint32(HklBinocularsDetectorEnum n,
                                                        size_t *n_pixels)

@@ -213,4 +213,5 @@ sixs: binoculars-ng
 #	$(PROCESS) data/test/config_sixs_ruche_threshold.ini 63-64
 #       TODO
 #	$(PROCESS) data/test/config_sixs_ruche_qpars.ini 290
-	$(PROCESS) data/test/config_sixs_ruche_shift.ini 62-65
+#	$(PROCESS) data/test/config_sixs_ruche_shift.ini 62-65
+	$(PROCESS) data/test/config_sixs_ruche_flat.ini 1777

@@ -160,6 +160,9 @@ instance Enum HklBinocularsDetectorEnum where
   fromEnum HklBinocularsDetectorEnum'RigakuXspa1M = c'HKL_BINOCULARS_DETECTOR_RIGAKU_XSPA_1M
 
 #ccall hkl_binoculars_detector_2d_coordinates_get, <HklBinocularsDetectorEnum> -> IO (Ptr CDouble)
+#ccall hkl_binoculars_detector_2d_flat_get, <HklBinocularsDetectorEnum> -> IO (Ptr CDouble)
+#ccall hkl_binoculars_detector_2d_flat_load, <HklBinocularsDetectorEnum> -> CString -> IO (Ptr CDouble)
+#ccall hkl_binoculars_detector_2d_img_load_into, <HklBinocularsDetectorEnum> -> CString -> Ptr Int32 -> CInt -> IO ()
 #ccall hkl_binoculars_detector_2d_mask_get, <HklBinocularsDetectorEnum> -> IO (Ptr CBool)
 #ccall hkl_binoculars_detector_2d_mask_load, <HklBinocularsDetectorEnum> -> CString -> IO (Ptr CBool)
 #ccall hkl_binoculars_detector_2d_mask_or, <HklBinocularsDetectorEnum> -> Ptr CBool -> Ptr CBool -> IO (Ptr CBool)
@@ -167,7 +170,6 @@ instance Enum HklBinocularsDetectorEnum where
 #ccall hkl_binoculars_detector_2d_number_of_detectors, IO CInt
 #ccall hkl_binoculars_detector_2d_shape_get, <HklBinocularsDetectorEnum> -> Ptr CInt -> Ptr CInt -> IO ()
 #ccall hkl_binoculars_detector_2d_sixs_calibration, <HklBinocularsDetectorEnum> -> Ptr CDouble -> CInt -> CInt -> CInt -> CInt -> CDouble -> CDouble -> CInt -> IO ()
-#ccall hkl_binoculars_detector_2d_img_load_into, <HklBinocularsDetectorEnum> -> CString -> Ptr Int32 -> CInt -> IO ()
 
 -----------
 -- Space --
@@ -325,6 +327,7 @@ type C'ProjectionTypeAngles t = Ptr C'HklBinocularsSpace -- HklBinocularsSpace *
  -> Ptr t --  const uint16_t *image
  -> CSize -- size_t n_pixels
  -> CDouble -- double weight
+ -> Ptr CDouble -- double flat
  -> Ptr Double -- const double *pixels_coordinates
  -> CSize -- int32_t pixels_coordinates_ndim
  -> Ptr CSize --  const int32_t *pixels_coordinates_dims
@@ -354,6 +357,7 @@ type C'ProjectionTypeQCustom t = Ptr C'HklBinocularsSpace -- HklBinocularsSpace 
  -> Ptr t --  const uint16_t *image
  -> CSize -- size_t n_pixels
  -> CDouble -- double weight
+ -> Ptr CDouble -- double flat
  -> Ptr Double -- const double *pixels_coordinates
  -> CSize -- int32_t pixels_coordinates_ndim
  -> Ptr CSize --  const int32_t *pixels_coordinates_dims
@@ -393,6 +397,7 @@ type C'ProjectionTypeHkl t = Ptr C'HklBinocularsSpace -- HklBinocularsSpace *sel
   -> Ptr t --  const <t> *image
   -> CSize -- size_t n_pixels
   -> CDouble -- double weight
+ -> Ptr CDouble -- double flat
   -> Ptr Double -- const double *pixels_coordinates
   -> CSize -- size_t pixels_coordinates_ndim
   -> Ptr CSize --  const int32_t *pixels_coordinates_dims

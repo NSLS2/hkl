@@ -8,6 +8,7 @@
 
 module Hkl.Detector
        ( Detector(..)
+       , Flat
        , Hkl
        , Mask
        , Normalisation(..)
@@ -16,6 +17,8 @@ module Hkl.Detector
        , ZeroD
        , defaultDetector
        , detectors
+       , getDetectorFlat
+       , getDetectorDefaultFlat
        , getDetectorMask
        , getDetectorDefaultMask
        , getPixelsCoordinates
@@ -55,6 +58,7 @@ import           Hkl.C.Binoculars
 import           Hkl.C.Hkl
 import           Hkl.Exception
 import           Hkl.Repa
+
 data PyFAI deriving (Eq, Show)
 data Hkl deriving (Eq, Show)
 data ZeroD deriving (Eq, Show)
@@ -89,6 +93,8 @@ instance Arbitrary (Detector Hkl DIM2) where
   arbitrary = elements detectors
 
 type Mask = Array F DIM2 CBool
+
+type Flat = Array F DIM2 CDouble
 
 -- Detector
 
@@ -166,6 +172,18 @@ fromPtr sh err ptr =
     else do
       arr <- liftIO $ newForeignPtr finalizerFree ptr
       return $ fromForeignPtr sh (castForeignPtr arr)
+
+getDetectorDefaultFlat :: (MonadThrow m, MonadIO m) => Detector Hkl DIM2 -> m Flat
+getDetectorDefaultFlat (Detector2D d _ sh) = do
+  let n = toEnum . fromEnum $ d
+  fromPtr sh NoDefaultFlat =<< liftIO (c'hkl_binoculars_detector_2d_flat_get n)
+
+getDetectorFlat :: (MonadThrow m, MonadIO m) => Detector Hkl DIM2 -> Text -> m Flat
+getDetectorFlat (Detector2D d name sh) flat = do
+  let  err = FlatShapeNotcompatible (Data.Text.unwords [pack name, ": ", flat])
+  let n = toEnum . fromEnum $ d
+  liftIO $ withCString (unpack flat) $
+         fromPtr sh err <=< c'hkl_binoculars_detector_2d_flat_load n
 
 getDetectorDefaultMask :: (MonadThrow m, MonadIO m) => Detector Hkl DIM2 -> m Mask
 getDetectorDefaultMask (Detector2D d _ sh) = do

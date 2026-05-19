@@ -2,7 +2,13 @@
 
 * 5.1.9 UNRELEASED
 ** Binoculars-ng (Haskell program)
-   - Addes support for mars mesh. (2D scan).
+   - Added support for mars mesh. (2D scan).
+   - Added the =input.flatmatrix= parameter which allows to provide a
+     way to correct each pixel with a different value. This parameter
+     can contain the =default= value (specific to each kind of
+     detector), or directly the path to a =.npy= file cointaining the
+     values. If this parameter is not provided, the default value is
+     =default=.
 * 5.1.8 <2026-04-02 jeu.>
 ** Binoculars (C-library)
    - Added support for uint8 images.

@@ -375,7 +375,7 @@ void hkl_binoculars_space_fprintf(FILE *f, const HklBinocularsSpace *self)
                                 for(j=0; j<ARRAY_SIZE(names); ++j){     \
                                         item.indexes_0[j] = rint(v.data[j] / resolutions[j]); \
                                 }                                       \
-                                item.intensity = rint((double)image[i] * weight); \
+                                item.intensity = rint((double)image[i] * weight / flat[i]); \
                                                                         \
                                                                         \
                                 if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
@@ -838,7 +838,7 @@ static inline double compute_azimuth(vec3s kf)
                                         item.indexes_0[0] = rint(v.raw[0] / resolutions[0]); \
                                         item.indexes_0[1] = rint(v.raw[1] / resolutions[1]); \
                                         item.indexes_0[2] = rint(v.raw[2] / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -863,7 +863,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(q / resolutions[0]); \
 					item.indexes_0[1] = rint(tth / resolutions[1]); \
 					item.indexes_0[2] = rint(timestamp / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -887,7 +887,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(q / resolutions[0]); \
 					item.indexes_0[1] = rint(timestamp / resolutions[1]); \
 					item.indexes_0[2] = REMOVED;	\
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -912,7 +912,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(qpar / resolutions[0]); \
                                         item.indexes_0[1] = rint(qper / resolutions[1]); \
 					item.indexes_0[2] = rint(timestamp / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -937,7 +937,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(qpar / resolutions[0]); \
                                         item.indexes_0[1] = rint(qper / resolutions[1]); \
 					item.indexes_0[2] = REMOVED;	\
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -961,7 +961,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(q / resolutions[0]); \
 					item.indexes_0[1] = rint((atan2(v.raw[2], -v.raw[1])) / M_PI * 180 / resolutions[1]); \
 					item.indexes_0[2] = rint(v.raw[0] / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -985,7 +985,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(q / resolutions[0]); \
 					item.indexes_0[1] = rint((atan2(v.raw[2], v.raw[0])) / M_PI * 180 / resolutions[1]); \
 					item.indexes_0[2] = rint(v.raw[1] / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1009,7 +1009,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(q / resolutions[0]); \
 					item.indexes_0[1] = rint((atan2(v.raw[1], v.raw[0])) / M_PI * 180 / resolutions[1]); \
 					item.indexes_0[2] = rint(v.raw[2] / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1035,7 +1035,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(q / resolutions[0]); \
 					item.indexes_0[1] = rint(v.raw[0] / ratio / resolutions[1]); \
 					item.indexes_0[2] = rint(v.raw[1] / ratio / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1059,7 +1059,7 @@ static inline double compute_azimuth(vec3s kf)
                                                 item.indexes_0[0] = rint(atan2(v.raw[2], sqrt(v.raw[0] * v.raw[0] + v.raw[1] * v.raw[1])) / M_PI * 180 / resolutions[0]); \
                                                 item.indexes_0[1] = rint(atan2(v.raw[1], v.raw[0]) / M_PI * 180 / resolutions[1]); \
                                                 item.indexes_0[2] = axis; \
-                                                item.intensity = (double)image[i] * correction; \
+                                                item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                                 if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                         darray_append(space->items, item); \
@@ -1083,7 +1083,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(v.raw[0] / resolutions[0]); \
 					item.indexes_0[1] = rint(v.raw[1] / resolutions[1]); \
 					item.indexes_0[2] = rint(v.raw[2] / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1103,7 +1103,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(v.raw[1] / resolutions[0]); \
 					item.indexes_0[1] = rint(v.raw[2] / resolutions[1]); \
 					item.indexes_0[2] = rint(timestamp / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1129,7 +1129,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(q / resolutions[0]); \
 					item.indexes_0[1] = rint(qpar / resolutions[1]); \
 					item.indexes_0[2] = rint(qper / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1154,7 +1154,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(qpars / resolutions[0]); \
                                         item.indexes_0[1] = rint(qper / resolutions[1]); \
 					item.indexes_0[2] = rint(timestamp / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1183,7 +1183,7 @@ static inline double compute_azimuth(vec3s kf)
                                                 item.indexes_0[0] = rint(qpar / resolutions[0]); \
                                                 item.indexes_0[1] = rint(qper / resolutions[1]); \
                                                 item.indexes_0[2] = axis; \
-                                                item.intensity = (double)image[i] * correction; \
+                                                item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                                 if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                         darray_append(space->items, item); \
@@ -1213,7 +1213,7 @@ static inline double compute_azimuth(vec3s kf)
                                                 item.indexes_0[0] = rint(q / resolutions[0]); \
                                                 item.indexes_0[1] = axis; \
                                                 item.indexes_0[2] = rint(tth / resolutions[2]); \
-                                                item.intensity = (double)image[i] * correction; \
+                                                item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                                 if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                         darray_append(space->items, item); \
@@ -1242,7 +1242,7 @@ static inline double compute_azimuth(vec3s kf)
                                                 item.indexes_0[0] = rint(q / resolutions[0]); \
                                                 item.indexes_0[1] = axis; \
                                                 item.indexes_0[2] = rint(timestamp / resolutions[2]); \
-                                                item.intensity = (double)image[i] * correction; \
+                                                item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                                 if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                         darray_append(space->items, item); \
@@ -1266,7 +1266,7 @@ static inline double compute_azimuth(vec3s kf)
                                         item.indexes_0[0] = rint(v.raw[0] / resolutions[0]); \
                                         item.indexes_0[1] = rint(v.raw[1] / resolutions[1]); \
                                         item.indexes_0[2] = rint(timestamp / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1289,7 +1289,7 @@ static inline double compute_azimuth(vec3s kf)
                                         item.indexes_0[0] = rint(v.raw[0] / resolutions[0]); \
                                         item.indexes_0[1] = rint(v.raw[2] / resolutions[1]); \
                                         item.indexes_0[2] = rint(timestamp / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1312,7 +1312,7 @@ static inline double compute_azimuth(vec3s kf)
                                         item.indexes_0[0] = rint(v.raw[1] / resolutions[0]); \
                                         item.indexes_0[1] = rint(v.raw[2] / resolutions[1]); \
                                         item.indexes_0[2] = rint(timestamp / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1338,7 +1338,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(tth / resolutions[0]); \
 					item.indexes_0[1] = rint(azimuth / resolutions[1]); \
 					item.indexes_0[2] = REMOVED;    \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1362,7 +1362,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(q / resolutions[0]); \
 					item.indexes_0[1] = rint(timescan0 / resolutions[1]); \
 					item.indexes_0[2] = REMOVED;	\
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1386,7 +1386,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(q / resolutions[0]); \
 					item.indexes_0[1] = rint(scannumber / resolutions[1]); \
 					item.indexes_0[2] = REMOVED;	\
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1411,7 +1411,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint(tth / resolutions[0]); \
 					item.indexes_0[1] = rint(scannumber / resolutions[1]); \
 					item.indexes_0[2] = REMOVED;	\
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1435,7 +1435,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint((atan2(v.raw[2], -v.raw[1])) / M_PI * 180 / resolutions[0]); \
 					item.indexes_0[1] = rint(q / resolutions[1]); \
 					item.indexes_0[2] = rint((acos(v.raw[0] / q) / M_PI * 180) / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1459,7 +1459,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint((atan2(v.raw[2], v.raw[0])) / M_PI * 180 / resolutions[0]); \
 					item.indexes_0[1] = rint(q / resolutions[1]); \
 					item.indexes_0[2] = rint((acos(v.raw[1] / q) / M_PI * 180) / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1483,7 +1483,7 @@ static inline double compute_azimuth(vec3s kf)
 					item.indexes_0[0] = rint((atan2(v.raw[1], v.raw[0])) / M_PI * 180 / resolutions[0]); \
 					item.indexes_0[1] = rint(q / resolutions[1]); \
 					item.indexes_0[2] = rint((acos(v.raw[2] / q) / M_PI * 180) / resolutions[2]); \
-                                        item.intensity = (double)image[i] * correction; \
+                                        item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                         if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                                 darray_append(space->items, item); \
@@ -1557,7 +1557,7 @@ HKL_BINOCULARS_SPACE_QCUSTOM_IMPL(uint32_t);
                                 item.indexes_0[0] = rint(v.raw[0] / resolutions[0]); \
                                 item.indexes_0[1] = rint(v.raw[1] / resolutions[1]); \
                                 item.indexes_0[2] = rint(v.raw[2] / resolutions[2]); \
-                                item.intensity = (double)image[i] * correction; \
+                                item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                 if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                         darray_append(space->items, item); \
@@ -1629,7 +1629,7 @@ HKL_BINOCULARS_SPACE_HKL_IMPL(uint32_t);
                                 item.indexes_0[0] = rint(v.raw[0] / resolutions[0]); \
                                 item.indexes_0[1] = rint(v.raw[1] / resolutions[1]); \
                                 item.indexes_0[2] = rint(v.raw[2] / resolutions[2]); \
-                                item.intensity = (double)image[i] * correction; \
+                                item.intensity = (double)image[i] * correction / flat[i]; \
                                                                         \
                                 if(TRUE == item_in_the_limits(&item, limits, n_limits)) \
                                         darray_append(space->items, item); \

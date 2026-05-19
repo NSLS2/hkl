@@ -176,8 +176,9 @@ getDataPath c
 
 {-# INLINE spaceHkl #-}
 spaceHkl :: Detector b DIM2 -> Array F DIM3 Double -> Resolutions DIM3 -> Maybe (RLimits DIM3) -> PolarisationCorrection -> Maybe DynamicMask -> Space DIM3 -> DataFrameHkl -> IO (DataFrameSpace DIM3)
-spaceHkl det pixels rs mlimits polarisation mdmask space@(Space fSpace) (DataFrameHkl (DataFrameQCustom att g img mmask _ _ _) samplePath) =
+spaceHkl det pixels rs mlimits polarisation mdmask space@(Space fSpace) (DataFrameHkl (DataFrameQCustom att g img mmask flat _ _ _) samplePath) =
     withNPixels det $ \nPixels ->
+    withForeignPtr (toForeignPtr flat) $ \ c'flat ->
     withForeignPtr (toForeignPtr pixels) $ \pix ->
     withForeignPtr fSpace $ \pSpace ->
     withGeometry g $ \geometry ->
@@ -190,13 +191,13 @@ spaceHkl det pixels rs mlimits polarisation mdmask space@(Space fSpace) (DataFra
       let c'polarisation = fromBool . unPolarisationCorrection $ polarisation
       case img of
         (ImageDouble arr) -> unsafeWith arr $ \i -> do
-                                        {-# SCC "hkl_binoculars_space_hkl_double" #-} c'hkl_binoculars_space_hkl_double pSpace geometry sample i nPixels (CDouble . unAttenuation $ att) pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) c'polarisation  c'dmask
+                                        {-# SCC "hkl_binoculars_space_hkl_double" #-} c'hkl_binoculars_space_hkl_double pSpace geometry sample i nPixels (CDouble . unAttenuation $ att) c'flat pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) c'polarisation  c'dmask
         (ImageInt32 arr) -> unsafeWith arr $ \i -> do
-                                        {-# SCC "hkl_binoculars_space_hkl_int32_t" #-} c'hkl_binoculars_space_hkl_int32_t pSpace geometry sample i nPixels (CDouble . unAttenuation $ att) pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) c'polarisation c'dmask
+                                        {-# SCC "hkl_binoculars_space_hkl_int32_t" #-} c'hkl_binoculars_space_hkl_int32_t pSpace geometry sample i nPixels (CDouble . unAttenuation $ att) c'flat pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) c'polarisation c'dmask
         (ImageWord16 arr) -> unsafeWith arr $ \i -> do
-                                        {-# SCC "hkl_binoculars_space_hkl_uint16_t" #-} c'hkl_binoculars_space_hkl_uint16_t pSpace geometry sample i nPixels (CDouble . unAttenuation $ att) pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) c'polarisation c'dmask
+                                        {-# SCC "hkl_binoculars_space_hkl_uint16_t" #-} c'hkl_binoculars_space_hkl_uint16_t pSpace geometry sample i nPixels (CDouble . unAttenuation $ att) c'flat pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) c'polarisation c'dmask
         (ImageWord32 arr) -> unsafeWith arr $ \i -> do
-                                        {-# SCC "hkl_binoculars_space_hkl_uint32_t" #-} c'hkl_binoculars_space_hkl_uint32_t pSpace geometry sample i nPixels (CDouble . unAttenuation $ att) pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) c'polarisation c'dmask
+                                        {-# SCC "hkl_binoculars_space_hkl_uint32_t" #-} c'hkl_binoculars_space_hkl_uint32_t pSpace geometry sample i nPixels (CDouble . unAttenuation $ att) c'flat pix (toEnum ndim) dims r (toEnum nr) mask'' limits (toEnum nlimits) c'polarisation c'dmask
       return (DataFrameSpace img space att)
 
 ----------
@@ -273,7 +274,7 @@ processHklP = do
                              >-> Pipes.Prelude.map allChunk
                              -- >-> tee Pipes.Prelude.print
                              >-> framesP datapaths
-                             >-> Pipes.Prelude.filter (\(DataFrameHkl (DataFrameQCustom _ _ img _ _ _ _) _) -> filterSumImage mImageSumMax img)
+                             >-> Pipes.Prelude.filter (\(DataFrameHkl (DataFrameQCustom _ _ img _ _ _ _ _) _) -> filterSumImage mImageSumMax img)
                              >-> project det 3 (spaceHkl det pixels res mlimits doPolarizationCorrection mdmask)
                              >-> tee (accumulateP c)
                              >-> progress pb

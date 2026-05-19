@@ -72,6 +72,7 @@ instance HasIniConfig Common where
           , binocularsConfig'Common'AttenuationMax         :: Maybe Float
           , binocularsConfig'Common'AttenuationShift       :: Maybe Int
           , binocularsConfig'Common'Maskmatrix             :: Maybe MaskLocation
+          , binocularsConfig'Common'Flatmatrix             :: Maybe FlatLocation
           , binocularsConfig'Common'Wavelength             :: Maybe Double
           , binocularsConfig'Common'ImageSumMax            :: Maybe Double
           , binocularsConfig'Common'SkipFirstPoints        :: Maybe Int
@@ -105,6 +106,7 @@ instance HasIniConfig Common where
           , binocularsConfig'Common'AttenuationMax = Nothing
           , binocularsConfig'Common'AttenuationShift = Nothing
           , binocularsConfig'Common'Maskmatrix = Nothing
+          , binocularsConfig'Common'Flatmatrix = Nothing
           , binocularsConfig'Common'Wavelength = Nothing
           , binocularsConfig'Common'ImageSumMax = Nothing
           , binocularsConfig'Common'SkipFirstPoints = Nothing
@@ -293,6 +295,26 @@ instance HasIniConfig Common where
                                                       , ""
                                                       , "Most of the time a mask file was generated during the experiment."
                                                       ]
+                                                      <> elemFMbDef "flatmatrix" binocularsConfig'Common'Flatmatrix c defaultConfig
+                                                      [ "name of the file which contain the detector flat or `default`"
+                                                      , ""
+                                                      , "The supported type of file is for now only .npy (double)"
+                                                      , ""
+                                                      , "the `default` value can be set in order to use the default"
+                                                      , "flat of the detector. Some of them have by default some area"
+                                                      , "which required to be flatten (pixels with non standard surface, "
+                                                      , "area with holes)."
+                                                      , ""
+                                                      , "sometime you need to assign a specific flat to a scan number."
+                                                      , "In that case, just add `{scannumber:<format>}` in the filename where"
+                                                      , "<format> is equivalent to the Python f-string logic."
+                                                      , "This small template will be used to compute the real falt filename."
+                                                      , "for exemple for the scannumber 8"
+                                                      , "   - flat_{scannumber:02d}.npy -> flat_08.npy"
+                                                      , "   - flat_{scannumber:03d}.npy -> flat_008.npy"
+                                                      , ""
+                                                      , "Most of the time a flat file was generated during the experiment."
+                                                      ]
                                                       <> elemFMbDef "wavelength" binocularsConfig'Common'Wavelength c defaultConfig
                                                       [ "overwrite the wavelength from the data file with the one provided."
                                                       , ""
@@ -403,6 +425,7 @@ instance HasIniConfig Common where
          binocularsConfig'Common'AttenuationMax <- parseMb cfg "input" "attenuation_max"
          binocularsConfig'Common'AttenuationShift <- parseMb cfg "input" "attenuation_shift"
          binocularsConfig'Common'Maskmatrix <- parseMb cfg "input" "maskmatrix"
+         binocularsConfig'Common'Flatmatrix <- parseMb cfg "input" "flatmatrix"
          binocularsConfig'Common'Wavelength <- parseMb cfg "input" "wavelength"
          binocularsConfig'Common'ImageSumMax <- parseMb cfg "input" "image_sum_max"
          binocularsConfig'Common'SkipFirstPoints <- parseMb cfg "input" "skip_first_points"

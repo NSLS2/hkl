@@ -207,6 +207,7 @@ static void angles_projection(void)
                 HklBinocularsSpace *space;
                 double *pixels_coordinates;
                 uint8_t *mask;
+		double *flat;
                 ptrdiff_t min, max;
                 HklBinocularsAxisLimits *delta_lims, *gamma_lims, *omega_lims;
 
@@ -224,6 +225,7 @@ static void angles_projection(void)
                 cube = hkl_binoculars_cube_new_empty();
                 pixels_coordinates = hkl_binoculars_detector_2d_coordinates_get(n);
                 mask = hkl_binoculars_detector_2d_mask_get(n);
+		flat = hkl_binoculars_detector_2d_flat_get(n);
 
                 for(i=0; i<3; ++i){
                         size_t img_size;
@@ -240,6 +242,7 @@ static void angles_projection(void)
                                                               img,
                                                               img_size,
                                                               weight,
+							      flat,
                                                               pixels_coordinates,
                                                               ARRAY_SIZE(pixels_coordinates_dims),
                                                               pixels_coordinates_dims,
@@ -284,6 +287,7 @@ static int qcustom_projection_sub(HklBinocularsQCustomSubProjectionEnum subproje
                 HklBinocularsSpace *space;
                 double *pixels_coordinates;
                 uint8_t *mask;
+		double *flat;
                 ptrdiff_t min, max;
                 HklBinocularsAxisLimits *qx_lims, *qy_lims, *qz_lims;
 
@@ -301,6 +305,7 @@ static int qcustom_projection_sub(HklBinocularsQCustomSubProjectionEnum subproje
                 cube = hkl_binoculars_cube_new_empty();
                 pixels_coordinates = hkl_binoculars_detector_2d_coordinates_get(n);
                 mask = hkl_binoculars_detector_2d_mask_get(n);
+		flat = hkl_binoculars_detector_2d_flat_get(n);
 
                 for(i=0; i<3; ++i){
                         size_t img_size;
@@ -325,6 +330,7 @@ static int qcustom_projection_sub(HklBinocularsQCustomSubProjectionEnum subproje
                                                                img,
                                                                img_size,
                                                                weight,
+							       flat,
                                                                pixels_coordinates,
                                                                ARRAY_SIZE(pixels_coordinates_dims),
                                                                pixels_coordinates_dims,
@@ -390,6 +396,7 @@ static void qparqper_projection(void)
                 HklBinocularsSpace *space;
                 double *pixels_coordinates;
                 uint8_t *mask;
+		double *flat;
                 ptrdiff_t min, max;
                 HklBinocularsAxisLimits *qpar_lims, *qper_lims;
 
@@ -405,6 +412,7 @@ static void qparqper_projection(void)
                 cube = hkl_binoculars_cube_new_empty();
                 pixels_coordinates = hkl_binoculars_detector_2d_coordinates_get(n);
                 mask = hkl_binoculars_detector_2d_mask_get(n);
+		flat = hkl_binoculars_detector_2d_flat_get(n);
 
                 for(i=0; i<3; ++i){
                         size_t img_size;
@@ -429,6 +437,7 @@ static void qparqper_projection(void)
                                                                img,
                                                                img_size,
                                                                weight,
+							       flat,
                                                                pixels_coordinates,
                                                                ARRAY_SIZE(pixels_coordinates_dims),
                                                                pixels_coordinates_dims,
@@ -480,6 +489,7 @@ static void qxqyqz_projection(void)
                 HklBinocularsSpace *space;
                 double *pixels_coordinates;
                 uint8_t *mask;
+		double *flat;
                 ptrdiff_t min, max;
                 HklBinocularsAxisLimits *qx_lims, *qy_lims, *qz_lims;
 
@@ -497,6 +507,7 @@ static void qxqyqz_projection(void)
                 cube = hkl_binoculars_cube_new_empty();
                 pixels_coordinates = hkl_binoculars_detector_2d_coordinates_get(n);
                 mask = hkl_binoculars_detector_2d_mask_get(n);
+		flat = hkl_binoculars_detector_2d_flat_get(n);
 
                 for(i=0; i<3; ++i){
                         size_t img_size;
@@ -520,6 +531,7 @@ static void qxqyqz_projection(void)
                                                                img,
                                                                img_size,
                                                                1.0,
+							       flat,
                                                                pixels_coordinates,
                                                                ARRAY_SIZE(pixels_coordinates_dims),
                                                                pixels_coordinates_dims,
@@ -620,6 +632,7 @@ static void hkl_projection(void)
                 HklBinocularsSpace *space;
                 double *pixels_coordinates;
                 uint8_t *mask;
+		double *flat;
                 HklBinocularsAxisLimits *h_lims, *k_lims, *l_lims;
 
                 h_lims = hkl_binoculars_axis_limits_new(NULL, NULL);
@@ -637,6 +650,7 @@ static void hkl_projection(void)
                                                             0, 0);
 
                 mask = hkl_binoculars_detector_2d_mask_get(n);
+		flat = hkl_binoculars_detector_2d_flat_get(n);
 
                 for(i=0; i<3; ++i){
 			size_t img_size;
@@ -654,6 +668,7 @@ static void hkl_projection(void)
                                                            img,
                                                            img_size,
                                                            weight,
+							   flat,
                                                            pixels_coordinates,
                                                            ARRAY_SIZE(pixels_coordinates_dims),
                                                            pixels_coordinates_dims,
@@ -757,6 +772,7 @@ static void test_projection(void)
                 double *pixels_coordinates;
                 double *pixels_coordinates_2;
                 uint8_t *mask;
+		double *flat;
                 HklBinocularsAxisLimits *h_lims, *k_lims, *l_lims;
 
                 h_lims = hkl_binoculars_axis_limits_new(NULL, NULL);
@@ -780,6 +796,7 @@ static void test_projection(void)
                                                             0, 0);
 
                 mask = hkl_binoculars_detector_2d_mask_get(n);
+		flat = hkl_binoculars_detector_2d_flat_get(n);
 
                 for(i=0; i<3; ++i){
                         size_t arr_size;
@@ -796,6 +813,7 @@ static void test_projection(void)
                                                            img,
                                                            arr_size,
                                                            1.0,
+							   flat,
                                                            pixels_coordinates,
                                                            ARRAY_SIZE(pixels_coordinates_dims),
                                                            pixels_coordinates_dims,
@@ -814,6 +832,7 @@ static void test_projection(void)
                                                             img,
                                                             arr_size,
                                                             1.0,
+							    flat,
                                                             pixels_coordinates_2,
                                                             ARRAY_SIZE(pixels_coordinates_dims),
                                                             pixels_coordinates_dims,
@@ -923,6 +942,7 @@ static void test_polarization(void)
 	HklBinocularsSpace *space;
 	double *pixels_coordinates;
 	uint8_t *mask;
+	double *flat;
 	HklBinocularsAxisLimits *h_lims, *k_lims, *l_lims;
 
 	h_lims = hkl_binoculars_axis_limits_new(NULL, NULL);
@@ -940,6 +960,7 @@ static void test_polarization(void)
 						    0, 0);
 
 	mask = hkl_binoculars_detector_2d_mask_get(n);
+	flat = hkl_binoculars_detector_2d_flat_get(n);
 
 	for(i=0; i<3; ++i){
 		size_t img_size;
@@ -957,6 +978,7 @@ static void test_polarization(void)
 						   img,
 						   img_size,
 						   weight,
+						   flat,
 						   pixels_coordinates,
 						   ARRAY_SIZE(pixels_coordinates_dims),
 						   pixels_coordinates_dims,

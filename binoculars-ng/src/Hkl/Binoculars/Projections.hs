@@ -19,6 +19,7 @@ module Hkl.Binoculars.Projections
   , newSpace
   , saveCube
   , withMaybeDynamicMask
+  , withMaybeFlat
   , withMaybeLimits
   , withMaybeMask
   , withMaybeSampleAxis
@@ -115,6 +116,12 @@ withDynamicMask (DynamicMask v) = with (CDouble v)
 
 withMaybeDynamicMask :: Maybe DynamicMask -> (Ptr CDouble -> IO r) -> IO r
 withMaybeDynamicMask = maybeWith withDynamicMask
+
+withFlat :: Flat -> (Ptr CDouble -> IO r) -> IO r
+withFlat m = withForeignPtr (toForeignPtr m)
+
+withMaybeFlat :: Maybe Flat -> (Ptr CDouble -> IO r) -> IO r
+withMaybeFlat = maybeWith withFlat
 
 withMaybeLimits :: Shape sh
                 => Maybe (RLimits sh)

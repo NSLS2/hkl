@@ -37,6 +37,7 @@ module Hkl.DataSource
   , DSDegree(..)
   , DSDouble(..)
   , DSDoubles(..)
+  , DSFlat(..)
   , DSFloat(..)
   , DSGeometry(..)
   , DSImage(..)
@@ -140,6 +141,9 @@ instance Is0DStreamable (DSDouble DSAcq) Double where
     extract0DStreamValue (DataSourceAcq'Double'Hdf5 d)  = extract0DStreamValue d
     extract0DStreamValue (DataSourceAcq'Double'Hdf5WithShift d _) = extract0DStreamValue d
     extract0DStreamValue (DataSourceAcq'Double'Const a) = pure a
+
+instance Is0DStreamable (DSFlat DSAcq) Flat where
+    extract0DStreamValue (DataSourceAcq'Flat m)    = pure m
 
 instance Is0DStreamable (DSMask DSAcq) (Maybe Mask) where
     extract0DStreamValue DataSourceAcq'Mask'NoMask = pure Nothing
@@ -349,6 +353,7 @@ instance GDSAK1 Dataset where
 instance GDSAK1 Degree
 instance GDSAK1 (Detector a sh)
 instance GDSAK1 Double
+instance GDSAK1 Flat
 instance GDSAK1 Geometry
 instance GDSAK1 Int
 instance GDSAK1 (IOVector a)
@@ -587,6 +592,23 @@ instance DataSource DSDoubles where
           where
             go [] ps as = g (DataSourcePath'List ps) (DataSourceAcq'List as)
             go (ps : pss) accPath accAcq = withDataSourcesP f ps $ \p s -> go pss (accPath ++ [[p]]) (accAcq ++ [s])
+
+-- Flat
+
+data family DSFlat (k :: DSKind)
+data instance DSFlat DSPath
+    = DataSourcePath'Flat FlatLocation (Detector Hkl DIM2)
+      deriving (Generic, Show)
+      deriving anyclass (FromJSON, ToJSON)
+
+data instance DSFlat DSAcq
+    = DataSourceAcq'Flat Flat
+    deriving Generic
+
+instance DataSource DSFlat where
+    withDataSourceP (ScanFile _ sn) path@(DataSourcePath'Flat l d) g
+        = do  m <- getFlat l d sn
+              g path (DataSourceAcq'Flat m)
 
 -- Float
 

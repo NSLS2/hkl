@@ -62,6 +62,11 @@ HKLAPI extern double *hkl_binoculars_detector_2d_coordinates_get(HklBinocularsDe
 HKLAPI extern void hkl_binoculars_detector_2d_coordinates_save(HklBinocularsDetectorEnum n,
                                                                const char *fname);
 
+HKLAPI extern double *hkl_binoculars_detector_2d_flat_get(HklBinocularsDetectorEnum n);
+
+HKLAPI extern double *hkl_binoculars_detector_2d_flat_load(HklBinocularsDetectorEnum n,
+							   const char *filename);
+
 HKLAPI extern uint8_t *hkl_binoculars_detector_2d_mask_get(HklBinocularsDetectorEnum n);
 
 HKLAPI extern uint8_t *hkl_binoculars_detector_2d_mask_load(HklBinocularsDetectorEnum n,
@@ -190,6 +195,7 @@ HKLAPI extern void hkl_binoculars_cube_fprintf(FILE *f, const HklBinocularsCube 
                                                       const image_t *image, \
                                                       size_t n_pixels,  \
                                                       double weight,    \
+						      const double *flat, \
                                                       const double *pixels_coordinates, \
                                                       size_t pixels_coordinates_ndim, \
                                                       const size_t *pixels_coordinates_dims, \
@@ -246,6 +252,7 @@ typedef enum _HklBinocularsQCustomSubProjectionEnum
                                                        const image_t *image, \
                                                        size_t n_pixels, \
                                                        double weight,   \
+						       const double *flat, \
                                                        const double *pixels_coordinates, \
                                                        size_t pixels_coordinates_ndim, \
                                                        const size_t *pixels_coordinates_dims, \
@@ -282,6 +289,7 @@ HKLAPI extern HKL_BINOCULARS_SPACE_QCUSTOM_DECL(uint32_t);
                                                    const image_t *image, \
                                                    size_t n_pixels,     \
                                                    double weight,       \
+						   const double *flat,	\
                                                    const double *pixels_coordinates, \
                                                    size_t pixels_coordinates_ndim, \
                                                    const size_t *pixels_coordinates_dims, \
@@ -308,6 +316,7 @@ HKLAPI extern HKL_BINOCULARS_SPACE_HKL_DECL(uint32_t);
                                                     const image_t *image, \
                                                     size_t n_pixels,    \
                                                     double weight,      \
+						    const double *flat, \
                                                     const double *pixels_coordinates, \
                                                     size_t pixels_coordinates_ndim, \
                                                     const size_t *pixels_coordinates_dims, \

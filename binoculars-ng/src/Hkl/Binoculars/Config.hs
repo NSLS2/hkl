@@ -36,6 +36,7 @@ module Hkl.Binoculars.Config
     , DynamicMask(..)
     , FieldEmitter(..)
     , FieldParsable(..)
+    , FlatLocation(..)
     , HasFieldComment(..)
     , HasFieldValue(..)
     , HasIniConfig(..)
@@ -64,6 +65,7 @@ module Hkl.Binoculars.Config
     , eitherF
     , files
     , getCapabilities
+    , getFlat
     , getInitialScannumber
     , getMask
     , getPreConfig
@@ -417,6 +419,35 @@ newtype DynamicMask =
   DynamicMask { unDynamicMask :: Double }
   deriving (Eq, Show)
   deriving newtype HasFieldValue
+
+-- FlatLocation
+
+data FlatLocation = FlatLocation Text
+                  | FlatLocation'Tmpl Text
+    deriving (Eq, Generic, Show)
+    deriving anyclass (FromJSON, ToJSON)
+
+instance FieldEmitter FlatLocation where
+  fieldEmitter (FlatLocation t)      = t
+  fieldEmitter (FlatLocation'Tmpl t) = t
+
+instance FieldParsable FlatLocation where
+  fieldParser = do
+    let loc :: Text -> FlatLocation
+        loc t = if "{scannumber:" `Data.Text.isInfixOf` t
+                then FlatLocation'Tmpl (strip t)
+                else FlatLocation (strip t)
+
+    t <- takeTill (== '|')
+    if t == ""
+      then fail "FlatLocation is Empty"
+      else do mc <- peekChar
+              case mc of
+                Nothing -> pure $ loc t
+                Just c  -> fail ("FlatLocation " <> [c])
+
+instance HasFieldValue FlatLocation where
+  fieldvalue = parsable
 
 -- Geometry
 
@@ -1173,6 +1204,17 @@ files md mr mt =
      if null fs
        then throwM (NoDataFilesUnderTheGivenDirectory dir)
        else return $ catMaybes fs
+
+getFlat :: (MonadCatch m, MonadIO m) => FlatLocation -> Detector Hkl DIM2 -> Scannumber -> m Flat
+getFlat loc d (Scannumber i)
+  = case loc of
+      FlatLocation "default" -> getDetectorDefaultFlat d
+      FlatLocation fname     -> getDetectorFlat d fname
+      FlatLocation'Tmpl tmpl -> do
+        let tmpl1 = replace "{scannumber:" "%" tmpl
+        let tmpl2 = replace "}" "" tmpl1
+        let fname = pack $ printf (unpack tmpl2) i
+        getDetectorFlat d fname
 
 getMask :: (MonadCatch m, MonadIO m) => MaskLocation -> Detector Hkl DIM2 -> Scannumber -> m Mask
 getMask loc d sn@(Scannumber i)
