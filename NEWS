@@ -1,5 +1,8 @@
 # -*- org -*-
 
+* 5.1.9 UNRELEASED
+** Binoculars-ng (Haskell program)
+   - Addes support for mars mesh. (2D scan).
 * 5.1.8 <2026-04-02 jeu.>
 ** Binoculars (C-library)
    - Added support for uint8 images.
