@@ -32,6 +32,7 @@ binoculars_ng_SOURCES=\
 	src/Hkl/C.hs \
 	src/Hkl/C/Binoculars.hsc \
 	src/Hkl/C/Hkl.hsc \
+	src/Hkl/Chunk.hs \
 	src/Hkl/DArray.hs \
 	src/Hkl/DataSource.hs \
 	src/Hkl/Detector.hs \
