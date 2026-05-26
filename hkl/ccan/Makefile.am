@@ -9,8 +9,6 @@ libccan_la_SOURCES = \
 	ccan_config.h \
 	alignof/alignof.h \
 	array_size/array_size.h \
-	autodata/autodata.c \
-	autodata/autodata.h \
 	build_assert/build_assert.h \
 	check_type/check_type.h \
 	compiler/compiler.h \
@@ -23,11 +21,7 @@ libccan_la_SOURCES = \
 	generator/generator.h \
 	list/list.c \
 	list/list.h \
-	noerr/noerr.c \
-	noerr/noerr.h \
 	ptrint/ptrint.h \
-	ptr_valid/ptr_valid.c \
-	ptr_valid/ptr_valid.h \
 	str/debug.c \
 	str/str.c \
 	str/str_debug.h \

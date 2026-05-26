@@ -13,16 +13,18 @@
  * You should have received a copy of the GNU General Public License
  * along with the hkl library.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2003-2019 Synchrotron SOLEIL
+ * Copyright (C) 2003-2019, 2026 Synchrotron SOLEIL
  *                         L'Orme des Merisiers Saint-Aubin
  *                         BP 48 91192 GIF-sur-YVETTE CEDEX
  *
  * Authors: Picca Frédéric-Emmanuel <picca@synchrotron-soleil.fr>
  */
-#include <execinfo.h>                   // for backtrace, etc
 #include "hkl-macros-private.h"
 
 #ifndef _MSC_VER
+
+# include <execinfo.h>
+
 void hkl_printbt(void)
 {
 	void *array[20];

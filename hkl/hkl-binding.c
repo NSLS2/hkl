@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with the hkl library.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2012-2019, 2022, 2023 Synchrotron SOLEIL
+ * Copyright (C) 2012-2019, 2022, 2023, 2026 Synchrotron SOLEIL
  *                         L'Orme des Merisiers Saint-Aubin
  *                         BP 48 91192 GIF-sur-YVETTE CEDEX
  *
@@ -30,7 +30,6 @@
 #include "hkl-parameter-private.h"
 #include "hkl-pseudoaxis-private.h"     // for _HklEngine, HklEngineInfo
 #include "hkl-sample-private.h"         // for _HklSampleReflection, etc
-#include "hkl/ccan/autodata/autodata.h"  // for autodata_get
 #include "hkl/ccan/darray/darray.h"     // for darray_foreach, darray_size
 #include "hkl/ccan/list/list.h"             // for list_for_each, list_head
 
@@ -72,7 +71,7 @@ GHashTable *hkl_factories(void)
 	HklFactory **factories;
 
 	table = g_hash_table_new(g_str_hash, g_str_equal);
-	factories = autodata_get(factories, &n);
+	factories = hkl_factory_get_all(&n);
 	for(i=0; i<n; ++i){
 		g_hash_table_insert(table,
 				    (gpointer)hkl_factory_name_get(factories[i]),

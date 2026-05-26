@@ -5,12 +5,10 @@ AM_CPPFLAGS = -Wextra -D_DEFAULT_SOURCE \
 	$(GLIB_CFLAGS) \
 	$(GSL_CFLAGS)
 
-# need access to the private part
-AM_LDFLAGS = -Wl,--whole-archive,$(top_builddir)/hkl/.libs/libhkl.a,--no-whole-archive
-
 LDADD = \
 	$(GLIB_LIBS) \
-	$(GSL_LIBS)
+	$(GSL_LIBS) \
+	$(top_builddir)/hkl/libhkl-private.la
 
 noinst_LTLIBRARIES=libhkl2.la
 libhkl2_la_SOURCES = \
