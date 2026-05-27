@@ -20,7 +20,6 @@
     <title>[Insert title here]</title>
     <xi:include href="xml/alignof.xml"/>
     <xi:include href="xml/array_size.xml"/>
-    <xi:include href="xml/autodata.xml"/>
     <xi:include href="xml/build_assert.xml"/>
     <xi:include href="xml/ccan_config.xml"/>
     <xi:include href="xml/check_type.xml"/>
@@ -58,8 +57,6 @@
     <xi:include href="xml/hkl-unit-private.xml"/>
     <xi:include href="xml/hkl-vector-private.xml"/>
     <xi:include href="xml/list.xml"/>
-    <xi:include href="xml/noerr.xml"/>
-    <xi:include href="xml/ptr_valid.xml"/>
     <xi:include href="xml/ptrint.xml"/>
     <xi:include href="xml/str.xml"/>
     <xi:include href="xml/str_debug.xml"/>
