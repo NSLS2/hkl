@@ -22,7 +22,7 @@
 * 5.1.6 <2026-02-16 lun.>
 ** Tests
    - updated the sha256 for the =CIRPAD= detector on numerous
-     architectures. It i snow possible to skip these test or an
+     architectures. It is now possible to skip these test or an
      architecture by using the =NULL= sha256.
 * 5.1.5 <2026-02-13 ven.>
 ** Binoculars-ng (Haskell program)
