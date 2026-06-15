@@ -81,7 +81,7 @@ instance HasIniConfig Common where
           , binocularsConfig'Common'Geometry               :: Geometry
           , binocularsConfig'Common'DynamicMask            :: Maybe DynamicMask
           , binocularsConfig'Common'GeometryValues         :: Map Text Double
-          , binocularsConfig'Common'GeometryShift          :: Map Text Int
+          , binocularsConfig'Common'GeometryShifts         :: Map Text Int
           , binocularsConfig'Common'_Content               :: ConfigContent  -- TO DELETE
           } deriving (Show, Generic)
 
@@ -115,7 +115,7 @@ instance HasIniConfig Common where
           , binocularsConfig'Common'Geometry = Geometry'Factory Uhv Nothing
           , binocularsConfig'Common'DynamicMask = Nothing
           , binocularsConfig'Common'GeometryValues = empty
-          , binocularsConfig'Common'GeometryShift = empty
+          , binocularsConfig'Common'GeometryShifts = empty
           , binocularsConfig'Common'_Content = ConfigContent "" -- TODELETE
           }
 
@@ -455,7 +455,7 @@ instance HasIniConfig Common where
                                             )
          binocularsConfig'Common'DynamicMask <- parseMb cfg "input" "dynamic_mask"
          binocularsConfig'Common'GeometryValues <- parseIniFile cfg iniParser'GeometryValues
-         binocularsConfig'Common'GeometryShift <- parseIniFile cfg iniParser'GeometryShifts
+         binocularsConfig'Common'GeometryShifts <- parseIniFile cfg (iniParser'GeometryShifts binocularsConfig'Common'Geometry)
          let binocularsConfig'Common'_Content = content  -- TO DELETE
 
          pure BinocularsConfig'Common{..}

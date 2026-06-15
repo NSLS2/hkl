@@ -112,7 +112,7 @@ import           Data.Ini.Config.Bidir             (FieldValue (..), bool,
                                                     text)
 import           Data.List                         (elemIndex, find, isInfixOf)
 import           Data.List.NonEmpty                (NonEmpty (..), head, map)
-import           Data.Map.Strict                   (Map, empty)
+import           Data.Map.Strict                   (Map, empty, mapMaybe)
 import           Data.Maybe                        (catMaybes, fromMaybe)
 import           Data.Text                         (Text, breakOn, cons, drop,
                                                     empty, findIndex,
@@ -478,9 +478,16 @@ iniParser'GeometryValues :: IniParser (Map Text Double)
 iniParser'GeometryValues
     = pure Data.Map.Strict.empty
 
-iniParser'GeometryShifts :: IniParser (Map Text Int)
-iniParser'GeometryShifts
-    = pure Data.Map.Strict.empty
+
+iniParser'GeometryShifts :: Geometry -> IniParser (Map Text Int)
+iniParser'GeometryShifts g
+    = do let as = geometry'Axes g
+         ss <- mapM ( \a -> do
+                       let k = pack a
+                       mv <- Data.Ini.Config.section "geometry.values" $ fieldMbOf (k <> "_shift") (fvParse $ auto)
+                       pure (k, mv)
+                   ) as
+         pure $ Data.Map.Strict.mapMaybe id (fromList ss)
 
 -- HklBinocularsQCustomSubProjectionEnum
 

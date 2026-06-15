@@ -12,6 +12,7 @@ module Hkl.Geometry
        , Transformation(..)
        , cirpad
        , fixed
+       , geometry'Axes
        , mk'Geometry
        , sixsMedHGisaxs
        , sixsMedVGisaxs
@@ -25,13 +26,16 @@ import           Data.Tree             (Tree (..), foldTree)
 import qualified Data.Vector.Storable  as V
 import           Foreign               (ForeignPtr, Ptr, newForeignPtr, nullPtr,
                                         withForeignPtr)
-import           Foreign.C             (CDouble (..), newCString, withCString)
+import           Foreign.C             (CDouble (..), newCString, peekCString,
+                                        withCString)
 import           GHC.Generics          (Generic)
 import           Numeric.LinearAlgebra (Vector)
+import           System.IO.Unsafe      (unsafePerformIO)
 
 import           Prelude               hiding (max, min)
 
 import           Hkl.C.Hkl
+import           Hkl.DArray
 import           Hkl.Lattice
 import           Hkl.Orphan            ()
 
@@ -115,7 +119,6 @@ mk'Geometry sa ds = Just geometry
             right = Node y [buildTree' ys| not (null ys)]
         in Node noAxis [left, right]
 
-
 cirpad :: Geometry
 cirpad = Geometry'Custom
     ( Node (Axis "" NoTransformation Unit'NoUnit)
@@ -171,6 +174,14 @@ zaxis
       ]
     )
     Nothing
+
+geometry'Axes :: Geometry -> [String]
+geometry'Axes (Geometry'Custom  _ _) = undefined
+geometry'Axes g@(Geometry'Factory _ _) =
+    unsafePerformIO $
+    withGeometry g $ \ptr -> do
+      (DArray _ axes) <- peekDarrayString =<< c'hkl_geometry_axis_names_get ptr
+      mapM peekCString axes
 
 pokeGeometry :: ForeignPtr C'HklGeometry -> GeometryState -> IO ()
 pokeGeometry fptr (GeometryState lw vs) =
