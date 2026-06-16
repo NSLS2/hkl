@@ -176,8 +176,7 @@ zaxis
     Nothing
 
 geometry'Axes :: Geometry -> [String]
-geometry'Axes (Geometry'Custom  _ _) = undefined
-geometry'Axes g@(Geometry'Factory _ _) =
+geometry'Axes g =
     unsafePerformIO $
     withGeometry g $ \ptr -> do
       (DArray _ axes) <- peekDarrayString =<< c'hkl_geometry_axis_names_get ptr

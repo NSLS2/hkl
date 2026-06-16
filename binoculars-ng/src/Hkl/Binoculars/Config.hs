@@ -484,8 +484,8 @@ iniParser'GeometryShifts g
     = do let as = geometry'Axes g
          ss <- mapM ( \a -> do
                        let k = pack a
-                       mv <- Data.Ini.Config.section "geometry.values" $ fieldMbOf (k <> "_shift") (fvParse $ auto)
-                       pure (k, mv)
+                       mmv <- Data.Ini.Config.sectionMb "geometry.values" $ fieldMbOf (k <> "_shift") (fvParse auto)
+                       pure (k, fromMaybe Nothing mmv)
                    ) as
          pure $ Data.Map.Strict.mapMaybe id (fromList ss)
 
