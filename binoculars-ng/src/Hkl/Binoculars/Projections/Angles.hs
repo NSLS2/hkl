@@ -104,20 +104,23 @@ instance HasIniConfig 'AnglesProjection where
                                                                                         TestProjection  -> undefined
            pure BinocularsConfig'Angles{..}
 
-  toIni c = toIni (binocularsConfig'Angles'Common c)
-            `mergeIni`
-            Ini { iniSections = fromList [ ("input", elemFDef "sample_axis" binocularsConfig'Angles'SampleAxis c defaultConfig
-                                                     [ "the name of the sample axis"
-                                                     , ""
-                                                     , "default value: `omega`"
-                                                     ]
-                                            )
-                                         , ("projection", elemFDef' "type" binocularsConfig'Angles'ProjectionType c defaultConfig
-                                                          <> elemFDef' "resolution" binocularsConfig'Angles'ProjectionResolution c defaultConfig
-                                                          <> elemFMbDef' "limits" binocularsConfig'Angles'ProjectionLimits c defaultConfig
-                                           )]
-                , iniGlobals = []
-                }
+  configToIni c
+      = configToIni (binocularsConfig'Angles'Common c)
+        `mergeIni`
+         Ini { iniSections = fromList [ ("input",
+                                         elemFDef "sample_axis" binocularsConfig'Angles'SampleAxis c defaultConfig
+                                         [ "the name of the sample axis"
+                                         , ""
+                                         , "default value: `omega`"
+                                         ]
+                                        )
+                                      , ("projection",
+                                         elemFDef' "type" binocularsConfig'Angles'ProjectionType c defaultConfig
+                                        <> elemFDef' "resolution" binocularsConfig'Angles'ProjectionResolution c defaultConfig
+                                        <> elemFMbDef' "limits" binocularsConfig'Angles'ProjectionLimits c defaultConfig
+                                        )]
+             , iniGlobals = []
+             }
 
 getDataPath :: Config 'AnglesProjection -> DSWrap_ DSDataFrameQCustom DSPath
 getDataPath c

@@ -147,17 +147,19 @@ instance HasIniConfig 'TestProjection where
            binocularsConfig'Test'ProjectionLimits <- parseMb cfg "projection" "limits"
            pure BinocularsConfig'Test{..}
 
-  toIni c = toIni (binocularsConfig'Test'Common c)
-            `mergeIni`
-            toIni (binocularsConfig'Test'Sample c)
-            `mergeIni`
-            Ini { iniSections = fromList [ ("projection", elemFDef' "type" binocularsConfig'Test'ProjectionType c defaultConfig
-                                                          <> elemFDef' "resolution" binocularsConfig'Test'ProjectionResolution c defaultConfig
-                                                          <> elemFMbDef' "limits" binocularsConfig'Test'ProjectionLimits c defaultConfig
-                                           )
-                                         ]
-                , iniGlobals = []
-                }
+  configToIni c
+      = configToIni (binocularsConfig'Test'Common c)
+        `mergeIni`
+         configToIni (binocularsConfig'Test'Sample c)
+        `mergeIni`
+         Ini { iniSections = fromList [ ("projection",
+                                         elemFDef' "type" binocularsConfig'Test'ProjectionType c defaultConfig
+                                        <> elemFDef' "resolution" binocularsConfig'Test'ProjectionResolution c defaultConfig
+                                        <> elemFMbDef' "limits" binocularsConfig'Test'ProjectionLimits c defaultConfig
+                                        )
+                                      ]
+             , iniGlobals = []
+             }
 
 
 getDataPath :: Config 'TestProjection -> DSWrap_ DSDataFrameTest DSPath

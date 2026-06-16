@@ -34,12 +34,13 @@ import           Data.Ini                          (Ini (..))
 import           Data.Ini.Config                   (parseIniFile)
 import           Data.Ini.Config.Bidir             (FieldValue (..))
 import           Data.List.NonEmpty                (NonEmpty (..))
-import           Data.Map.Strict                   (Map, empty)
+import           Data.Map.Strict                   (Map, empty, foldMapWithKey)
 import           Data.Text                         (Text, pack)
 import           GHC.Generics                      (Generic)
 import           Numeric.Interval                  (singleton)
 import           Numeric.Units.Dimensional.Prelude (degree, meter, (*~))
 import           Path                              (Abs, Dir, Path)
+import           Text.Printf                       (printf)
 
 import           Hkl.Binoculars.Config
 import           Hkl.C.Binoculars
@@ -51,6 +52,14 @@ import           Hkl.Repa
 import           Hkl.Types
 
 data Common
+
+instance ToIni (Map Text Int) where
+    toIni m
+        = if null m
+          then mempty
+          else Ini { iniSections = fromList [ ( "geometry.values", foldMapWithKey (\k v -> [(k <> "_shift", pack $ printf "%d" v)]) m ) ]
+                    , iniGlobals = []
+                    }
 
 instance HasIniConfig Common where
 
@@ -119,242 +128,248 @@ instance HasIniConfig Common where
           , binocularsConfig'Common'_Content = ConfigContent "" -- TODELETE
           }
 
-    toIni c = Ini { iniSections = fromList [ ("dispatcher", elemFDef "ncores" binocularsConfig'Common'NCores c defaultConfig
-                                                          [ "the number of cores use for computation."
-                                                          , "the effective number of core used depends on the real number of core available on your computer."
-                                                          , "at maximum this value could be one less that the physical number of core."
-                                                          , ""
-                                                          , "if `zero` use the maximum of capabilities."
-                                                          ]
-                                                          <> elemFDef "destination" binocularsConfig'Common'Destination c defaultConfig
-                                                          [ "the template used to produce the destination file"
-                                                          , ""
-                                                          , "You can write what you want in the field but it need to end with .h5"
-                                                          , "The generated file is an hdf5 file. You can add in the text some specific"
-                                                          , "string which will be replace with values extracted from the configuration"
-                                                          , "when saving the file."
-                                                          , ""
-                                                          , "These parameters are:"
-                                                          , "  `{first}`      - replaced by the first scan numer of the serie"
-                                                          , "  `{last}`       - replaced by the last scan numer of the serie"
-                                                          , "  `{limits}`     - replaced by the limits of the final cube or nolimits"
-                                                          , "  `{projection}` - the projection name"
-                                                          ]
-                                                          <> elemFDef "overwrite" binocularsConfig'Common'Overwrite c defaultConfig
-                                                          [ " `true` - the output file name is always the same, so it is overwriten when"
-                                                          , "recomputed with the same parameter."
-                                                          , " `false` - the output is modifier and `_<number>` is added to the filename in order"
-                                                          , " to avoid overwriting them."
-                                                          ]
+    configToIni c
+        = toIni (binocularsConfig'Common'Geometry c)
+          `mergeIni`
+           toIni (binocularsConfig'Common'GeometryShifts c)
+          `mergeIni`
+          Ini { iniSections = fromList $ [ ("dispatcher",
+                                            elemFDef "ncores" binocularsConfig'Common'NCores c defaultConfig
+                                            [ "the number of cores use for computation."
+                                            , "the effective number of core used depends on the real number of core available on your computer."
+                                            , "at maximum this value could be one less that the physical number of core."
+                                            , ""
+                                            , "if `zero` use the maximum of capabilities."
+                                            ]
+                                           <> elemFDef "destination" binocularsConfig'Common'Destination c defaultConfig
+                                            [ "the template used to produce the destination file"
+                                            , ""
+                                            , "You can write what you want in the field but it need to end with .h5"
+                                            , "The generated file is an hdf5 file. You can add in the text some specific"
+                                            , "string which will be replace with values extracted from the configuration"
+                                            , "when saving the file."
+                                            , ""
+                                            , "These parameters are:"
+                                            , "  `{first}`      - replaced by the first scan numer of the serie"
+                                            , "  `{last}`       - replaced by the last scan numer of the serie"
+                                            , "  `{limits}`     - replaced by the limits of the final cube or nolimits"
+                                            , "  `{projection}` - the projection name"
+                                            ]
+                                           <> elemFDef "overwrite" binocularsConfig'Common'Overwrite c defaultConfig
+                                            [ " `true` - the output file name is always the same, so it is overwriten when"
+                                            , "recomputed with the same parameter."
+                                            , " `false` - the output is modifier and `_<number>` is added to the filename in order"
+                                            , " to avoid overwriting them."
+                                            ]
                                            )
-                                         ,  ("input", elemFDef "type" binocularsConfig'Common'InputType c defaultConfig
-                                                      ([ "Define the experimental setup and the type of scan used to acquire the data"
-                                                       , ""
-                                                       , "the list of the available values are:"
-                                                       , ""
-                                                       ]
-                                                       <> [" - " <> fvEmit fieldvalue v | v <- [minBound..maxBound :: InputType]]
-                                                       <> [ ""
-                                                          , "`sbs` means step by step scan."
-                                                          , ""
-                                                          , "`fly` or `flyscan` means flyscan."
-                                                          , ""
-                                                          , "`medh` or `medv` or `uhv` refers to the diffractometer."
-                                                          , ""
-                                                          , "Some configurations specify the detector like eiger/s70..."
-                                                          , "look at the `detector` parameter if you need to select another one."
-                                                          , ""
-                                                          , "This parameter defines how to find the datas in the hdf5 file."
-                                                          ]
-                                                      )
-                                                      <> elemFMbDef "nexusdir" binocularsConfig'Common'Nexusdir c defaultConfig
-                                                      [ "Directory path where binoculars-ng looks for the data."
-                                                      , ""
-                                                      , "All sub directories are explored."
-                                                      , "It can be relative to the current directory or absolute"
-                                                      ]
-                                                      <> elemFMbDef "inputtmpl" binocularsConfig'Common'Tmpl c defaultConfig
-                                                      [ "data files are matched with this template in order to decide if it must be used for computation."
-                                                      , ""
-                                                      , "the template is pre-processed with the printf logic and an integer value comming from the the `inputrange`"
-                                                      , "for example with the default value `%05d` and this `inputrange=1-10`, all supported files which contains"
-                                                      , "00001, 00002, ... 00010 are used during the computation."
-                                                      ]
-                                                      <> elemFDef "inputrange" binocularsConfig'Common'InputRange c defaultConfig
-                                                      [ "Indexes of the scans you want to process"
-                                                      , ""
-                                                      , "There are two ways to enter these values."
-                                                      , "  `n`         - a single scan with index n"
-                                                      , "  `n-m`       - a range of scans from n to m (included)"
-                                                      , ""
-                                                      , "  `n-m,p,...` - combination of scans indexes separated by a coma (no space allowed)."
-                                                      ]
-                                                      <> elemFDef "detector" binocularsConfig'Common'Detector c defaultConfig
-                                                      ([ "The detector name"
-                                                       , ""
-                                                       , "In order to process the data, we need the 3D position of each pixel"
-                                                       , "in the laboratory basis. Since every detector has it's own geometry,"
-                                                       , "it is necessary to provide this information unambiguously."
-                                                       , ""
-                                                       , "Some data files contain more than one detectors, so this parameter allows"
-                                                       , "to select the right one."
-                                                       , ""
-                                                       , "the list of known detectors is:"]
-                                                       <> [" - " <> pack n | (Detector2D _ n _) <- detectors]
-                                                      )
-                                                      <> elemFMbDef "images" binocularsConfig'Common'Image c defaultConfig
-                                                      [ "where to find the image in the files JSON encoded" ]
-                                                      <> elemFDef "centralpixel" binocularsConfig'Common'Centralpixel c defaultConfig
-                                                      [ "x,y coordinates in pixels of the direct beam on the detector."
-                                                      , ""
-                                                      , "with `sdd` and `detrot` this parameter allow to set the"
-                                                      , "detector position on the detector's arm when all motors"
-                                                      , "are set equal to `0`."
-                                                      ]
-                                                      <> elemFDef "sdd" binocularsConfig'Common'Sdd c defaultConfig
-                                                      [ "sample-detector-distance expressed in meter."
-                                                      , ""
-                                                      , "with `centralpixel` and `detrot` this parameter allow to set the"
-                                                      , "detector position on the detector's arm when all motors"
-                                                      , "are set equal to `0`."
-                                                      ]
-                                                      <> elemFDef "detrot" binocularsConfig'Common'Detrot c defaultConfig
-                                                      [ "rotation of the detector along the x axis expressed in Degrees."
-                                                      , ""
-                                                      , "with `centralpixel` and `sdd` this parameter allow to set the"
-                                                      , "detector position on the detector's arm when all motors"
-                                                      , "are set equal to `0`."
-                                                      ]
-                                                      <> elemFMbDef "attenuation_coefficient" binocularsConfig'Common'AttenuationCoefficient c defaultConfig
-                                                      ["the attenuation coefficient used to correct the detector's data."
-                                                      , ""
-                                                      , " `<not set>` - no correction is applyed"
-                                                      , " `value`     - a correction is applyed"
-                                                      , ""
-                                                      , "The `value` depends on the energy of the experiment."
-                                                      , ""
-                                                      , "On Sixs there is two different kind of attenuation system."
-                                                      , " `new attenuation` - based on piezo actuators (fast)"
-                                                      , " `old attenuation` - based on pneumatic` actuators (slower)"
-                                                      , ""
-                                                      , "both system save the same kind of data's in the data files."
-                                                      , "An attenuation value `v` at each step of the scan which allows"
-                                                      , "to compute the image correction with this formula:"
-                                                      , ""
-                                                      , "  `attenuation_coef ** v`"
-                                                      , ""
-                                                      , "The only difference is a shift of the index for the the new attenuation."
-                                                      , "The applyed correction for the n-th point is computed with the `value`"
-                                                      , "at n + 2"
-                                                      ]
-                                                      <> elemFMbDef "attenuation_max" binocularsConfig'Common'AttenuationMax c defaultConfig
-                                                      [ "maximum attenuation allow for the attenuation correction."
-                                                      , ""
-                                                      , " `<not set>` - always apply the attenuation correction."
-                                                      , " `max`       - apply the attenuation if `v` is lower or equal to `max`"
-                                                      , ""
-                                                      , "`v` is the value stored by the attenuation system in the data file."
-                                                      , ""
-                                                      , "This parameter has an effect only if the `attenuation_coefficient`"
-                                                      , "was previously set."
-                                                      ]
-                                                      <> elemFMbDef "attenuation_shift" binocularsConfig'Common'AttenuationShift c defaultConfig
-                                                      [ "shift the index of the attenuation."
-                                                      , ""
-                                                      , " `<not set>` - use the default offset. (0 or 2 depending of the kind of scan)"
-                                                      , " `shift`     - force the shift to the given value."
-                                                      , ""
-                                                      , "This `shift` correspond to a decalage between the attenuator values and the images."
-                                                      , "the attenuation corresponding to the image at the position `n` in a scan"
-                                                      , "is in fact `n + shift`"
-                                                      , ""
-                                                      , "This parameter has an effect only if the `attenuation_coefficient`"
-                                                      , "was previously set."
-                                                      ]
-                                                      <> elemFMbDef "maskmatrix" binocularsConfig'Common'Maskmatrix c defaultConfig
-                                                      [ "name of the file which contain the detector mask or `default`"
-                                                      , ""
-                                                      , "The supported type of file is for now only .npy (double | bool)"
-                                                      , ""
-                                                      , "the `default` value can be set in order to use the default"
-                                                      , "mask of the detector. Some of them have by default some area"
-                                                      , "which required to be masked (pixels with non standard surface, "
-                                                      , "area with holes)."
-                                                      , ""
-                                                      , "sometime you need to assign a specific mask to a scan number."
-                                                      , "In that case, just add `{scannumber:<format>}` in the filename where"
-                                                      , "<format> is equivalent to the Python f-string logic."
-                                                      , "This small template will be used to compute the real mask filename."
-                                                      , "for exemple for the scannumber 8"
-                                                      , "   - mask_{scannumber:02d}.npy -> mask_08.npy"
-                                                      , "   - mask_{scannumber:03d}.npy -> mask_008.npy"
-                                                      , ""
-                                                      , "You can combine multiple masks with an or logic using the `|` operator"
-                                                      , "like this:"
-                                                      , "  `mask_{scannumber:02d}.npy | mask.npy | default`"
-                                                      , ""
-                                                      , "Most of the time a mask file was generated during the experiment."
-                                                      ]
-                                                      <> elemFMbDef "flatmatrix" binocularsConfig'Common'Flatmatrix c defaultConfig
-                                                      [ "name of the file which contain the detector flat or `default`"
-                                                      , ""
-                                                      , "The supported type of file is for now only .npy (double)"
-                                                      , ""
-                                                      , "the `default` value can be set in order to use the default"
-                                                      , "flat of the detector. Some of them have by default some area"
-                                                      , "which required to be flatten (pixels with non standard surface, "
-                                                      , "area with holes)."
-                                                      , ""
-                                                      , "sometime you need to assign a specific flat to a scan number."
-                                                      , "In that case, just add `{scannumber:<format>}` in the filename where"
-                                                      , "<format> is equivalent to the Python f-string logic."
-                                                      , "This small template will be used to compute the real falt filename."
-                                                      , "for exemple for the scannumber 8"
-                                                      , "   - flat_{scannumber:02d}.npy -> flat_08.npy"
-                                                      , "   - flat_{scannumber:03d}.npy -> flat_008.npy"
-                                                      , ""
-                                                      , "Most of the time a flat file was generated during the experiment."
-                                                      ]
-                                                      <> elemFMbDef "wavelength" binocularsConfig'Common'Wavelength c defaultConfig
-                                                      [ "overwrite the wavelength from the data file with the one provided."
-                                                      , ""
-                                                      , " `<not set>`  - use the data file wavelength"
-                                                      , " `wavelength` - overwrite the data file value with this one."
-                                                      ]
-                                                      <> elemFMbDef "image_sum_max" binocularsConfig'Common'ImageSumMax c defaultConfig
-                                                      [ "maximum intensity value allow for the sum of all pixels in an image in order to process it."
-                                                      , ""
-                                                      , " `<not set>` - process all images."
-                                                      , " `max`       - process images only if the sum of all the pixels is lower than `max`"
-                                                      ]
-                                                      <> elemFMbDef "skip_first_points" binocularsConfig'Common'SkipFirstPoints c defaultConfig
-                                                      [ "skip the first `n` points of each scan."
-                                                      , ""
-                                                      , " `<not set>` - process all images."
-                                                      , " `n`         - skip the first `n` points (`n` included)"
-                                                      ]
-                                                      <> elemFMbDef "skip_last_points" binocularsConfig'Common'SkipLastPoints c defaultConfig
-                                                      [ "skip the last `n` points of each scan."
-                                                      , ""
-                                                      , " `<not set>` - process all images."
-                                                      , " `n`         - skip the last `n` points (`n` included)"
-                                                      ]
-                                                      <> elemFDef "polarization_correction" binocularsConfig'Common'PolarizationCorrection c defaultConfig
-                                                      [ " `true` - apply the polarization correctionthe to the intensities."
-                                                      , " `false` - do not apply the polarization correction."
-                                                      , " to avoid overwriting them."
-                                                      ]
-                                                      <> elemFMbDef "dynamic_mask" binocularsConfig'Common'DynamicMask c defaultConfig
-                                                      [ "mask pixels of the detector if the pixel value is above this value."
-                                                      , ""
-                                                      , " `<not set>` - process all pixels."
-                                                      , " `threshold` - process pixel only if its value is lower than `threshold`"
-                                                      ]
+                                         , ("input",
+                                            elemFDef "type" binocularsConfig'Common'InputType c defaultConfig
+                                            ([ "Define the experimental setup and the type of scan used to acquire the data"
+                                             , ""
+                                                          , "the list of the available values are:"
+                                             , ""
+                                             ]
+                                            <> [" - " <> fvEmit fieldvalue v | v <- [minBound..maxBound :: InputType]]
+                                            <> [ ""
+                                               , "`sbs` means step by step scan."
+                                               , ""
+                                               , "`fly` or `flyscan` means flyscan."
+                                               , ""
+                                               , "`medh` or `medv` or `uhv` refers to the diffractometer."
+                                               , ""
+                                               , "Some configurations specify the detector like eiger/s70..."
+                                               , "look at the `detector` parameter if you need to select another one."
+                                               , ""
+                                               , "This parameter defines how to find the datas in the hdf5 file."
+                                               ]
                                             )
+                                           <> elemFMbDef "nexusdir" binocularsConfig'Common'Nexusdir c defaultConfig
+                                            [ "Directory path where binoculars-ng looks for the data."
+                                            , ""
+                                            , "All sub directories are explored."
+                                            , "It can be relative to the current directory or absolute"
+                                            ]
+                                           <> elemFMbDef "inputtmpl" binocularsConfig'Common'Tmpl c defaultConfig
+                                            [ "data files are matched with this template in order to decide if it must be used for computation."
+                                            , ""
+                                            , "the template is pre-processed with the printf logic and an integer value comming from the the `inputrange`"
+                                            , "for example with the default value `%05d` and this `inputrange=1-10`, all supported files which contains"
+                                            , "00001, 00002, ... 00010 are used during the computation."
+                                            ]
+                                           <> elemFDef "inputrange" binocularsConfig'Common'InputRange c defaultConfig
+                                            [ "Indexes of the scans you want to process"
+                                            , ""
+                                            , "There are two ways to enter these values."
+                                            , "  `n`         - a single scan with index n"
+                                            , "  `n-m`       - a range of scans from n to m (included)"
+                                            , ""
+                                            , "  `n-m,p,...` - combination of scans indexes separated by a coma (no space allowed)."
+                                            ]
+                                           <> elemFDef "detector" binocularsConfig'Common'Detector c defaultConfig
+                                            ([ "The detector name"
+                                             , ""
+                                             , "In order to process the data, we need the 3D position of each pixel"
+                                             , "in the laboratory basis. Since every detector has it's own geometry,"
+                                             , "it is necessary to provide this information unambiguously."
+                                             , ""
+                                             , "Some data files contain more than one detectors, so this parameter allows"
+                                             , "to select the right one."
+                                             , ""
+                                             , "the list of known detectors is:"]
+                                            <> [" - " <> pack n | (Detector2D _ n _) <- detectors]
+                                            )
+                                           <> elemFMbDef "images" binocularsConfig'Common'Image c defaultConfig
+                                            [ "where to find the image in the files JSON encoded" ]
+                                           <> elemFDef "centralpixel" binocularsConfig'Common'Centralpixel c defaultConfig
+                                            [ "x,y coordinates in pixels of the direct beam on the detector."
+                                            , ""
+                                            , "with `sdd` and `detrot` this parameter allow to set the"
+                                            , "detector position on the detector's arm when all motors"
+                                            , "are set equal to `0`."
+                                            ]
+                                           <> elemFDef "sdd" binocularsConfig'Common'Sdd c defaultConfig
+                                            [ "sample-detector-distance expressed in meter."
+                                            , ""
+                                            , "with `centralpixel` and `detrot` this parameter allow to set the"
+                                            , "detector position on the detector's arm when all motors"
+                                            , "are set equal to `0`."
+                                            ]
+                                           <> elemFDef "detrot" binocularsConfig'Common'Detrot c defaultConfig
+                                            [ "rotation of the detector along the x axis expressed in Degrees."
+                                            , ""
+                                            , "with `centralpixel` and `sdd` this parameter allow to set the"
+                                            , "detector position on the detector's arm when all motors"
+                                            , "are set equal to `0`."
+                                            ]
+                                           <> elemFMbDef "attenuation_coefficient" binocularsConfig'Common'AttenuationCoefficient c defaultConfig
+                                            ["the attenuation coefficient used to correct the detector's data."
+                                            , ""
+                                            , " `<not set>` - no correction is applyed"
+                                            , " `value`     - a correction is applyed"
+                                            , ""
+                                            , "The `value` depends on the energy of the experiment."
+                                            , ""
+                                            , "On Sixs there is two different kind of attenuation system."
+                                            , " `new attenuation` - based on piezo actuators (fast)"
+                                            , " `old attenuation` - based on pneumatic` actuators (slower)"
+                                            , ""
+                                            , "both system save the same kind of data's in the data files."
+                                            , "An attenuation value `v` at each step of the scan which allows"
+                                            , "to compute the image correction with this formula:"
+                                            , ""
+                                            , "  `attenuation_coef ** v`"
+                                            , ""
+                                            , "The only difference is a shift of the index for the the new attenuation."
+                                            , "The applyed correction for the n-th point is computed with the `value`"
+                                            , "at n + 2"
+                                            ]
+                                           <> elemFMbDef "attenuation_max" binocularsConfig'Common'AttenuationMax c defaultConfig
+                                            [ "maximum attenuation allow for the attenuation correction."
+                                            , ""
+                                            , " `<not set>` - always apply the attenuation correction."
+                                            , " `max`       - apply the attenuation if `v` is lower or equal to `max`"
+                                            , ""
+                                            , "`v` is the value stored by the attenuation system in the data file."
+                                            , ""
+                                            , "This parameter has an effect only if the `attenuation_coefficient`"
+                                            , "was previously set."
+                                            ]
+                                           <> elemFMbDef "attenuation_shift" binocularsConfig'Common'AttenuationShift c defaultConfig
+                                            [ "shift the index of the attenuation."
+                                            , ""
+                                            , " `<not set>` - use the default offset. (0 or 2 depending of the kind of scan)"
+                                            , " `shift`     - force the shift to the given value."
+                                            , ""
+                                            , "This `shift` correspond to a decalage between the attenuator values and the images."
+                                            , "the attenuation corresponding to the image at the position `n` in a scan"
+                                            , "is in fact `n + shift`"
+                                            , ""
+                                            , "This parameter has an effect only if the `attenuation_coefficient`"
+                                            , "was previously set."
+                                            ]
+                                           <> elemFMbDef "maskmatrix" binocularsConfig'Common'Maskmatrix c defaultConfig
+                                            [ "name of the file which contain the detector mask or `default`"
+                                            , ""
+                                            , "The supported type of file is for now only .npy (double | bool)"
+                                            , ""
+                                            , "the `default` value can be set in order to use the default"
+                                            , "mask of the detector. Some of them have by default some area"
+                                            , "which required to be masked (pixels with non standard surface, "
+                                            , "area with holes)."
+                                            , ""
+                                            , "sometime you need to assign a specific mask to a scan number."
+                                            , "In that case, just add `{scannumber:<format>}` in the filename where"
+                                            , "<format> is equivalent to the Python f-string logic."
+                                            , "This small template will be used to compute the real mask filename."
+                                            , "for exemple for the scannumber 8"
+                                            , "   - mask_{scannumber:02d}.npy -> mask_08.npy"
+                                            , "   - mask_{scannumber:03d}.npy -> mask_008.npy"
+                                            , ""
+                                            , "You can combine multiple masks with an or logic using the `|` operator"
+                                            , "like this:"
+                                            , "  `mask_{scannumber:02d}.npy | mask.npy | default`"
+                                            , ""
+                                            , "Most of the time a mask file was generated during the experiment."
+                                            ]
+                                           <> elemFMbDef "flatmatrix" binocularsConfig'Common'Flatmatrix c defaultConfig
+                                            [ "name of the file which contain the detector flat or `default`"
+                                            , ""
+                                            , "The supported type of file is for now only .npy (double)"
+                                            , ""
+                                            , "the `default` value can be set in order to use the default"
+                                            , "flat of the detector. Some of them have by default some area"
+                                            , "which required to be flatten (pixels with non standard surface, "
+                                            , "area with holes)."
+                                            , ""
+                                            , "sometime you need to assign a specific flat to a scan number."
+                                            , "In that case, just add `{scannumber:<format>}` in the filename where"
+                                            , "<format> is equivalent to the Python f-string logic."
+                                            , "This small template will be used to compute the real falt filename."
+                                            , "for exemple for the scannumber 8"
+                                            , "   - flat_{scannumber:02d}.npy -> flat_08.npy"
+                                            , "   - flat_{scannumber:03d}.npy -> flat_008.npy"
+                                            , ""
+                                            , "Most of the time a flat file was generated during the experiment."
+                                            ]
+                                           <> elemFMbDef "wavelength" binocularsConfig'Common'Wavelength c defaultConfig
+                                            [ "overwrite the wavelength from the data file with the one provided."
+                                            , ""
+                                            , " `<not set>`  - use the data file wavelength"
+                                            , " `wavelength` - overwrite the data file value with this one."
+                                            ]
+                                           <> elemFMbDef "image_sum_max" binocularsConfig'Common'ImageSumMax c defaultConfig
+                                            [ "maximum intensity value allow for the sum of all pixels in an image in order to process it."
+                                            , ""
+                                            , " `<not set>` - process all images."
+                                            , " `max`       - process images only if the sum of all the pixels is lower than `max`"
+                                            ]
+                                           <> elemFMbDef "skip_first_points" binocularsConfig'Common'SkipFirstPoints c defaultConfig
+                                            [ "skip the first `n` points of each scan."
+                                            , ""
+                                            , " `<not set>` - process all images."
+                                            , " `n`         - skip the first `n` points (`n` included)"
+                                            ]
+                                           <> elemFMbDef "skip_last_points" binocularsConfig'Common'SkipLastPoints c defaultConfig
+                                            [ "skip the last `n` points of each scan."
+                                            , ""
+                                            , " `<not set>` - process all images."
+                                            , " `n`         - skip the last `n` points (`n` included)"
+                                            ]
+                                           <> elemFDef "polarization_correction" binocularsConfig'Common'PolarizationCorrection c defaultConfig
+                                            [ " `true` - apply the polarization correctionthe to the intensities."
+                                            , " `false` - do not apply the polarization correction."
+                                            , " to avoid overwriting them."
+                                            ]
+                                           <> elemFMbDef "dynamic_mask" binocularsConfig'Common'DynamicMask c defaultConfig
+                                            [ "mask pixels of the detector if the pixel value is above this value."
+                                            , ""
+                                            , " `<not set>` - process all pixels."
+                                            , " `threshold` - process pixel only if its value is lower than `threshold`"
+                                            ]
+                                           )
                                          ]
-
-                , iniGlobals = []
-                }
+              , iniGlobals = []
+              }
 
     getConfig content@(ConfigContent cfg) (Args'Common mr) (Capabilities ncapmax ncoresmax)
         = do

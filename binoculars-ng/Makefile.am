@@ -132,6 +132,10 @@ PROCESS_DBG=$(RUN_DBG) ./binoculars-ng process
 MERGE = $(RUN) --debug merge
 MERGE_DBG = $(RUN_DBG) ./binoculars-ng merge
 
+home: binoculars-ng
+	$(RUN) --help
+	$(RUN) cfg-new qcustom
+
 cristal: binoculars-ng
 	$(PROCESS) /nfs/ruche/cristal-soleil/com-cristal/2019/Run5/99190273_Bouyanfif/PourFred/conf_mask.ini  64
 

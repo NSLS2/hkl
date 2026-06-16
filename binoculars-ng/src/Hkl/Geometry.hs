@@ -11,6 +11,7 @@ module Hkl.Geometry
        , GeometryState(..)
        , Transformation(..)
        , cirpad
+       , custom'toList
        , fixed
        , geometry'Axes
        , mk'Geometry
@@ -80,7 +81,10 @@ data Transformation
   deriving (Eq, Generic, FromJSON, Show, ToJSON)
 
 data Axis
-  = Axis String Transformation Unit
+  = Axis { axis'name           :: String
+         , axis'transformation :: Transformation
+         , axis'unit           :: Unit
+         }
   deriving (Eq, Generic, FromJSON, Show, ToJSON)
 
 data GeometryState
@@ -194,11 +198,14 @@ pokeGeometry fptr (GeometryState lw vs) =
   V.unsafeWith vs $ \values ->
     c'hkl_geometry_axis_values_set ptr values n c'HKL_UNIT_USER nullPtr
 
+custom'toList :: Tree Axis -> [[Axis]]
+custom'toList = foldTree (\x xs -> if null xs then [[x]] else concatMap (map (x:)) xs)
+
 newGeometry :: Geometry -> IO (ForeignPtr C'HklGeometry)
 newGeometry (Geometry'Custom g ms)
   = do
   gPtr <- c'hkl_geometry_new nullPtr nullPtr
-  mapM_ (addHolder gPtr) (axes g)
+  mapM_ (addHolder gPtr) (custom'toList g)
   fptr <- newForeignPtr p'hkl_geometry_free gPtr
   case ms of
     Nothing  -> return ()
@@ -219,9 +226,6 @@ newGeometry (Geometry'Custom g ms)
         Translation x y z -> do
           c'n <- newCString n
           c'hkl_holder_add_translation h c'n (CDouble x) (CDouble y) (CDouble z) (unitToHklUnit u)
-
-      axes :: Tree Axis -> [[Axis]]
-      axes = foldTree (\x xsss -> if null xsss then [[x]] else concatMap (map (x:)) xsss)
 newGeometry (Geometry'Factory f ms)
     = do fptr <- newForeignPtr p'hkl_geometry_free =<< c'hkl_factory_create_new_geometry =<< newFactory f
          case ms of

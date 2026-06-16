@@ -252,59 +252,61 @@ instance HasIniConfig 'QCustomProjection where
                                                      )
            pure BinocularsConfig'QCustom{..}
 
-  toIni c = toIni (binocularsConfig'QCustom'Common c)
-            `mergeIni`
-            Ini { iniSections = fromList [ ("input",    elemFDef' "surface_orientation" binocularsConfig'QCustom'HklBinocularsSurfaceOrientationEnum c defaultConfig
---                                                      <> elemFDef' "datapath" binocularsConfig'QCustom'DataPath c defaultConfig
-                                           )
-                                         , ("projection",    elemFDef' "type" binocularsConfig'QCustom'ProjectionType c defaultConfig
-                                                          <> elemFDef' "resolution" binocularsConfig'QCustom'ProjectionResolution c defaultConfig
-                                                          <> elemFMbDef' "limits" binocularsConfig'QCustom'ProjectionLimits c defaultConfig
-                                                          <> elemFMbDef' "subprojection" binocularsConfig'QCustom'SubProjection c defaultConfig
-                                                          <> elemFDef "uqx" binocularsConfig'QCustom'Uqx c defaultConfig
-                                                          [ "rotation around the x-axis of the sample in the surface basis system -- degree"
-                                                          , ""
-                                                          , "in this basis, the x-axis is colinear to the surface of the sample along the x-rays."
-                                                          , ""
-                                                          , " `<not set>` - use the default value `0.0`"
-                                                          , " `a value`   - use this value"
-                                                          ]
-                                                          <> elemFDef "uqy" binocularsConfig'QCustom'Uqy c defaultConfig
-                                                          [ "rotation around the y-axis of the sample in the surface basis system -- degree"
-                                                          , ""
-                                                          , "in this basis, the y-axis is colinear to the surface of the sample and"
-                                                          , "forme a directe basis with x-axis and z-axis."
-                                                          , ""
-                                                          , "examples:"
-                                                          , "  - all motors set to zero and a vertical surface - y-axis along -z (labo basis)"
-                                                          , "  - all motors set to zero and an horizontal surcafe - y-axis along y (labo basis)"
-                                                          , ""
-                                                          , " `<not set>` - use the default value `0.0`"
-                                                          , " `a value`   - use this value"
-                                                          ]
-                                                          <> elemFDef "uqz" binocularsConfig'QCustom'Uqz c defaultConfig
-                                                          [ "rotation around the z-axis of the sample in the surface basis system -- degree"
-                                                          , ""
-                                                          , "in this basis, the z-axis is perpendicular to the surface of the sample."
-                                                          , ""
-                                                          , "examples:"
-                                                          , "  - all motors set to zero and a vertical surface - z-axis along y (labo basis)"
-                                                          , "  - all motors set to zero and an horizontal surcafe - z-axis along z (labo basis)"
-                                                          , ""
-                                                          , ""
-                                                          , " `<not set>` - use the default value `0.0`"
-                                                          , " `a value`   - use this value"
-                                                          ]
-                                                          <> elemFMbDef "sampleaxis" binocularsConfig'QCustom'SampleAxis c defaultConfig
-                                                          [ "the name of the sample axis expected by some subprojections."
-                                                          , ""
-                                                          , " `<not set>` - for all subprojections which does not expect a value."
-                                                          , " `a value`   - use this value for the subprojection expecting this axis."
-                                                          ]
-                                           )]
-
-                , iniGlobals = []
-                }
+  configToIni c
+      = configToIni (binocularsConfig'QCustom'Common c)
+        `mergeIni`
+         Ini { iniSections = fromList [ ("input",
+                                         elemFDef' "surface_orientation" binocularsConfig'QCustom'HklBinocularsSurfaceOrientationEnum c defaultConfig
+                                        )
+                                      , ("projection",
+                                         elemFDef' "type" binocularsConfig'QCustom'ProjectionType c defaultConfig
+                                        <> elemFDef' "resolution" binocularsConfig'QCustom'ProjectionResolution c defaultConfig
+                                        <> elemFMbDef' "limits" binocularsConfig'QCustom'ProjectionLimits c defaultConfig
+                                        <> elemFMbDef' "subprojection" binocularsConfig'QCustom'SubProjection c defaultConfig
+                                        <> elemFDef "uqx" binocularsConfig'QCustom'Uqx c defaultConfig
+                                         [ "rotation around the x-axis of the sample in the surface basis system -- degree"
+                                         , ""
+                                         , "in this basis, the x-axis is colinear to the surface of the sample along the x-rays."
+                                         , ""
+                                         , " `<not set>` - use the default value `0.0`"
+                                         , " `a value`   - use this value"
+                                         ]
+                                        <> elemFDef "uqy" binocularsConfig'QCustom'Uqy c defaultConfig
+                                         [ "rotation around the y-axis of the sample in the surface basis system -- degree"
+                                         , ""
+                                         , "in this basis, the y-axis is colinear to the surface of the sample and"
+                                         , "forme a directe basis with x-axis and z-axis."
+                                         , ""
+                                         , "examples:"
+                                         , "  - all motors set to zero and a vertical surface - y-axis along -z (labo basis)"
+                                         , "  - all motors set to zero and an horizontal surcafe - y-axis along y (labo basis)"
+                                         , ""
+                                         , " `<not set>` - use the default value `0.0`"
+                                         , " `a value`   - use this value"
+                                         ]
+                                        <> elemFDef "uqz" binocularsConfig'QCustom'Uqz c defaultConfig
+                                         [ "rotation around the z-axis of the sample in the surface basis system -- degree"
+                                         , ""
+                                         , "in this basis, the z-axis is perpendicular to the surface of the sample."
+                                         , ""
+                                         , "examples:"
+                                         , "  - all motors set to zero and a vertical surface - z-axis along y (labo basis)"
+                                         , "  - all motors set to zero and an horizontal surcafe - z-axis along z (labo basis)"
+                                         , ""
+                                         , ""
+                                         , " `<not set>` - use the default value `0.0`"
+                                         , " `a value`   - use this value"
+                                         ]
+                                        <> elemFMbDef "sampleaxis" binocularsConfig'QCustom'SampleAxis c defaultConfig
+                                         [ "the name of the sample axis expected by some subprojections."
+                                         , ""
+                                         , " `<not set>` - for all subprojections which does not expect a value."
+                                         , " `a value`   - use this value for the subprojection expecting this axis."
+                                         ]
+                                        )
+                                      ]
+             , iniGlobals = []
+             }
 
 ------------------
 -- Input Path's --

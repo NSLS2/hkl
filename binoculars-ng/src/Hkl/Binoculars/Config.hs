@@ -54,6 +54,7 @@ module Hkl.Binoculars.Config
     , Resolutions(..)
     , RLimits(..)
     , SampleAxis(..)
+    , ToIni(..)
     , auto
     , auto'
     , autoJSON
@@ -110,7 +111,8 @@ import           Data.Ini.Config                   (IniParser, fieldMbOf,
 import           Data.Ini.Config.Bidir             (FieldValue (..), bool,
                                                     listWithSeparator, number,
                                                     text)
-import           Data.List                         (elemIndex, find, isInfixOf)
+import           Data.List                         (elemIndex, find, isInfixOf,
+                                                    length)
 import           Data.List.NonEmpty                (NonEmpty (..), head, map)
 import           Data.Map.Strict                   (Map, empty, mapMaybe)
 import           Data.Maybe                        (catMaybes, fromMaybe)
@@ -304,10 +306,10 @@ class HasIniConfig (a :: k) where
             -> Capabilities
             -> Either String (Config a)
 
-  toIni :: Config a -> Ini
+  configToIni :: Config a -> Ini
 
   serializeConfig :: Config a -> Text
-  serializeConfig = printIni . toIni
+  serializeConfig = printIni . configToIni
 
 mergeHash :: (Eq k, Hashable k, Semigroup v) => HashMap k v -> HashMap k v -> HashMap k v
 mergeHash = unionWith f
@@ -317,6 +319,11 @@ mergeHash = unionWith f
 
 mergeIni :: Ini -> Ini -> Ini
 mergeIni x y = Ini {iniGlobals = mempty, iniSections = iniSections x `mergeHash` iniSections y}
+
+-- Class ToIni
+
+class ToIni a where
+    toIni :: a -> Ini
 
 -- Angstrom
 
@@ -451,6 +458,26 @@ instance HasFieldValue FlatLocation where
 
 -- Geometry
 
+instance ToIni Geometry where
+    toIni (Geometry'Factory _ _) = mempty
+    toIni (Geometry'Custom t _)
+        = let as :: [[Axis]]
+              as = custom'toList t
+              sample :: [(Text, Text)]
+              sample
+                  | Data.List.length as > 0 = [ ("geometry_sample", asText $ as !! 0 ) ]
+                  | otherwise = []
+              detector :: [(Text, Text)]
+              detector
+                  | Data.List.length as > 1 = [ ("geometry_sample", asText $ as !! 1 ) ]
+                  | otherwise = []
+              asText :: [Axis] -> Text
+              asText = Data.Text.unwords . Prelude.map (pack . axis'name)
+          in Ini { iniSections = fromList [ ("geometry", sample <> detector) ]
+                 , iniGlobals = []
+                 }
+
+
 iniParser'Maybe'Geometry :: IniParser (Maybe Geometry)
 iniParser'Maybe'Geometry
     = do res <- sectionMb "geometry" $
@@ -473,6 +500,7 @@ iniParser'Maybe'Geometry
       iniParser'Axis n
           = do (t, u) <- Data.Ini.Config.section "geometry" $ fieldOf ("axis_" <> n) (parseOnly ((,) <$> fieldParser <*> fieldParser))
                pure $ Axis (unpack n) t u
+
 
 iniParser'GeometryValues :: IniParser (Map Text Double)
 iniParser'GeometryValues

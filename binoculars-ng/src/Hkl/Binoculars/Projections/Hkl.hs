@@ -151,17 +151,19 @@ instance HasIniConfig 'HklProjection where
            binocularsConfig'Hkl'ProjectionLimits <- parseMb cfg "projection" "limits"
            pure BinocularsConfig'Hkl{..}
 
-  toIni c = toIni (binocularsConfig'Hkl'Common c)
-            `mergeIni`
-            toIni (binocularsConfig'Hkl'Sample c)
-            `mergeIni`
-            Ini { iniSections = fromList [ ("projection", elemFDef' "type" binocularsConfig'Hkl'ProjectionType c defaultConfig
-                                                          <> elemFDef' "resolution" binocularsConfig'Hkl'ProjectionResolution c defaultConfig
-                                                          <> elemFMbDef' "limits" binocularsConfig'Hkl'ProjectionLimits c defaultConfig
-                                           )
-                                         ]
-                , iniGlobals = []
-                }
+  configToIni c
+      = configToIni (binocularsConfig'Hkl'Common c)
+        `mergeIni`
+         configToIni (binocularsConfig'Hkl'Sample c)
+        `mergeIni`
+         Ini { iniSections = fromList [ ("projection",
+                                         elemFDef' "type" binocularsConfig'Hkl'ProjectionType c defaultConfig
+                                        <> elemFDef' "resolution" binocularsConfig'Hkl'ProjectionResolution c defaultConfig
+                                        <> elemFMbDef' "limits" binocularsConfig'Hkl'ProjectionLimits c defaultConfig
+                                        )
+                                      ]
+             , iniGlobals = []
+             }
 
 getDataPath :: Config 'HklProjection -> DSWrap_ DSDataFrameHkl DSPath
 getDataPath c
