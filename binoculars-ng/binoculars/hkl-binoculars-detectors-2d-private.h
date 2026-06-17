@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with the hkl library.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2003-2025 Synchrotron SOLEIL
+ * Copyright (C) 2003-2026 Synchrotron SOLEIL
  *                         L'Orme des Merisiers Saint-Aubin
  *                         BP 48 91192 GIF-sur-YVETTE CEDEX
  *
@@ -187,7 +187,8 @@ datatype(
         (MerlinMedipix3RXQuad, struct tilling_t),
         (MerlinMedipix3RXQuad512, struct tilling_t),
         (Cirpad, struct cirpad_t),
-	(RigakuXspa1M, struct square_t)
+	(RigakuXspa1M, struct square_t),
+	(PilatusCdTe2M, struct tilling_t)
         );
 
 struct detector_t {
@@ -221,7 +222,9 @@ static inline struct detector_t get_detector(HklBinocularsDetectorEnum n)
                 DETECTOR(Cirpad,
                          SHAPE(560, 2400), CIRPAD(130e-6, 80, 120)),
 		DETECTOR(RigakuXspa1M,
-			 SHAPE(1034, 1104), SQUARE(76e-6))
+			 SHAPE(1034, 1104), SQUARE(76e-6)),
+                DETECTOR(PilatusCdTe2M,
+                         SHAPE(1475, 1679), TILLING(487, 195, 7, 17, 172e-6, true, true, 0)),
         };
 
         if (n > ARRAY_SIZE(detectors))

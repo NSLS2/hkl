@@ -1321,9 +1321,16 @@ GL Compile error
 ** packaging
 *** TODO add a .spec file for rpm generation.
 ** TODO binoculars-ng
-*** TODO remove usage of repa.
+*** DONE remove usage of repa.
 This package is no longer provided by Debian. Try to find a replacement
 for the Shape.
 *** TODO [mars] Exclude data based on the actuator position.
 For exemple remove all data where phi > 268 and phi < 272 and phi > 88 phi < 92
 =/nfs/ruche/mars-soleil/com-mars/2024_Run1/20232102/binoculars/config_qxqyqz.ini= for scan 127-135.
+*** TODO [mars] Added the Pilatus2M detector
+https://media.dectris.com/Technical_Specification_PILATUS_2M_V1_7.pdf
+- Pixel size 172 x 172 µm2
+- Module size 83.8 x 33.5 mm2
+- Format 1475 x 1679 = 2'476'525 pixels
+- Area 254 x 289 mm2
+- Intermodule gap x: 7 pixels, y: 17 pixels, 7.97 % of total area

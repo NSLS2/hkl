@@ -684,6 +684,7 @@ mk'Image'Path inputtype mImage detector@(Detector2D d _ _) sn = fromMaybe image 
                     HklBinocularsDetectorEnum'Cirpad -> undefined
                     HklBinocularsDetectorEnum'RigakuXspa1M ->
                         DataSourcePath'Image'Img detector "/nfs/ruche/sixs-soleil/com-sixs/2025/Run1/Rigaku_99240224/Scan%d/Beam18keV4_scan%d_%06d.img" sn
+                    HklBinocularsDetectorEnum'Dectris'PilatusCdTe2M -> undefined
                  ]
 
       sixs'Sbs = [case d of
@@ -709,6 +710,7 @@ mk'Image'Path inputtype mImage detector@(Detector2D d _ _) sn = fromMaybe image 
                     HklBinocularsDetectorEnum'Cirpad -> undefined
                     HklBinocularsDetectorEnum'RigakuXspa1M ->
                         DataSourcePath'Image'Img detector "/nfs/ruche/sixs-soleil/com-sixs/2025/Run1/Rigaku_99240224/Scan%d/Beam18keV4_scan%d_%06d.img" sn
+                    HklBinocularsDetectorEnum'Dectris'PilatusCdTe2M -> undefined
                  ]
 
       image = case inputtype of
