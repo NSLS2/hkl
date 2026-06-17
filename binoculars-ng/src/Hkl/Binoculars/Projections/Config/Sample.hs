@@ -163,6 +163,7 @@ guess'DataSource'Sample common sample =
                         CristalK6C        -> cristalSamplePath
                         Custom            -> undefined
                         DiffabsCirpad     -> diffabsSamplePath
+                        MarsCx3Sbs        -> marsSamplePath
                         MarsFlyscan       -> marsSamplePath
                         MarsSbs           -> marsSamplePath
                         SixsFlyMedH       -> medHSamplePath

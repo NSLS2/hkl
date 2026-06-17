@@ -686,6 +686,7 @@ instance HasFieldValue InputTypeDeprecated where
 data InputType = CristalK6C
                | Custom
                | DiffabsCirpad
+               | MarsCx3Sbs
                | MarsFlyscan
                | MarsSbs
                | SixsFlyMedH
@@ -709,6 +710,7 @@ instance FieldEmitter InputType where
   fieldEmitter CristalK6C        = "cristal:k6c"
   fieldEmitter Custom            = "custom"
   fieldEmitter DiffabsCirpad     = "diffabs:cirpad"
+  fieldEmitter MarsCx3Sbs        = "mars:cx3:sbs"
   fieldEmitter MarsFlyscan       = "mars:flyscan"
   fieldEmitter MarsSbs           = "mars:sbs"
   fieldEmitter SixsFlyMedH       = "sixs:flymedh"

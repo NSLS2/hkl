@@ -406,6 +406,7 @@ instance HasIniConfig Common where
                                                            CristalK6C -> mkDetector HklBinocularsDetectorEnum'XpadFlatCorrected
                                                            Custom -> binocularsConfig'Common'Detector defaultConfig
                                                            DiffabsCirpad -> undefined -- mkDetector HklBinocularsDetectorEnum'Cirpad
+                                                           MarsCx3Sbs -> mkDetector HklBinocularsDetectorEnum'Dectris'PilatusCdTe2M
                                                            MarsFlyscan -> mkDetector HklBinocularsDetectorEnum'MerlinMedipix3rxQuad
                                                            MarsSbs -> mkDetector HklBinocularsDetectorEnum'MerlinMedipix3rxQuad
                                                            SixsFlyMedH -> binocularsConfig'Common'Detector defaultConfig
@@ -452,6 +453,7 @@ instance HasIniConfig Common where
                                                                         CristalK6C        -> Geometry'Factory K6c Nothing
                                                                         Custom            -> undefined
                                                                         DiffabsCirpad     -> cirpad
+                                                                        MarsCx3Sbs        -> marsCx3
                                                                         MarsFlyscan       -> Geometry'Factory Mars Nothing
                                                                         MarsSbs           -> Geometry'Factory Mars Nothing
                                                                         SixsFlyMedH       -> Geometry'Factory MedH Nothing

@@ -14,6 +14,7 @@ module Hkl.Geometry
        , custom'toList
        , fixed
        , geometry'Axes
+       , marsCx3
        , mk'Geometry
        , sixsMedHGisaxs
        , sixsMedVGisaxs
@@ -128,6 +129,16 @@ cirpad = Geometry'Custom
     ( Node (Axis "" NoTransformation Unit'NoUnit)
       [ Node (Axis "" NoTransformation Unit'NoUnit) []
       , Node (Axis "delta" (Translation 0 (-1) 0) Unit'Angle'Degree) [Node (Axis "gamma" (Translation 0 0 1) Unit'Angle'Degree) []]
+      ]
+    )
+    Nothing
+
+marsCx3 :: Geometry
+marsCx3
+    = Geometry'Custom
+    ( Node (Axis "" NoTransformation Unit'NoUnit)
+      [ Node (Axis "phi" (Rotation 0 0 1) Unit'Angle'Degree) [ Node (Axis "omega" (Rotation 0 (-1) 0) Unit'Angle'Degree) [] ]
+      , Node (Axis "ty" (Translation 0 1 0) Unit'Length'MilliMeter) [Node (Axis "tth" (Rotation 0 (-1) 0) Unit'Angle'Degree) [Node (Axis "tx" (Translation 1 0 0) Unit'Length'MilliMeter) [] ]]
       ]
     )
     Nothing

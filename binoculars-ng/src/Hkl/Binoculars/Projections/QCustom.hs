@@ -356,6 +356,7 @@ mk'Attenuation'Path inputtype mAttenuationCoefficient mAttenuationMax mAttenuati
                       CristalK6C        -> no
                       Custom            -> no
                       DiffabsCirpad     -> no
+                      MarsCx3Sbs        -> no
                       MarsFlyscan       -> no
                       MarsSbs           -> no
                       SixsFlyMedH       -> sixs'Fly
@@ -392,7 +393,8 @@ mk'Wavelength'Path inputtype mw = Prelude.map f wavelength
       wavelength = let cristal = [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ datasetp "CRISTAL/Monochromator/lambda") ] ]
                        diffabs = [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ datasetp "DIFFABS/d13-1-c03__op__mono/wavelength") ] ]
                        mars = [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ datasetp "MARS/d03-1-c03__op__mono1-config_#2/lambda" ) ]
-                              , DataSourcePath'Double'Const 1.537591
+                              -- TODO /scan_0030/MARS/d03-1-c03__op__mono1_#2/energy
+                              , DataSourcePath'Double'Const 0.7293188143129427
                               ]
                        sixs = [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ datasetp "SIXS/Monochromator/wavelength")
                                                            , DataSourcePath'Dataset (hdf5p $ grouppat 0 $ datasetp "SIXS/i14-c-c02-op-mono/lambda")
@@ -402,6 +404,7 @@ mk'Wavelength'Path inputtype mw = Prelude.map f wavelength
                         CristalK6C        -> cristal
                         Custom            -> undefined
                         DiffabsCirpad     -> diffabs
+                        MarsCx3Sbs        -> mars
                         MarsFlyscan       -> mars
                         MarsSbs           -> mars
                         SixsFlyMedH       -> sixs
@@ -600,6 +603,24 @@ mk'Axes'Path inputtype shifts cfg = axes
                                  , mk'Axis'Path shifts "gamma" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d13-1-cx1/ex/dif.1-cirpad-gam/position")) ] ]
                                  ]
                                ]
+               MarsCx3Sbs -> [ DataSourcePath'List
+                              [ mk'Axis'Path shifts "phi" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx0/ex/spt_mf-mt_rz/position")) ]
+                                                          , DataSourcePath'Double'Const 0
+                                                          ]
+                              , mk'Axis'Path shifts "omega" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx0/ex/spt_mf-mt_rx/position")) ]
+                                                            , DataSourcePath'Double'Const 0
+                                                            ]
+                              , mk'Axis'Path shifts "ty" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_tx/position")) ]
+                                                         , DataSourcePath'Double'Const 0
+                                                         ]
+                              , mk'Axis'Path shifts "tth" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_rx/position")) ]
+                                                          , DataSourcePath'Double'Const 0
+                                                          ]
+                              , mk'Axis'Path shifts "tx" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_ts/position")) ]
+                                                         , DataSourcePath'Double'Const 0
+                                                         ]
+                              ]
+                            ]
                MarsFlyscan -> [ DataSourcePath'List
                                [ mk'Axis'Path shifts "omega" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ datasetp "scan_data/omega") ] ]
                                , mk'Axis'Path shifts "chi" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ datasetp "scan_data/chi") ] ]
@@ -723,6 +744,12 @@ mk'Image'Path inputtype mImage detector@(Detector2D d _ _) sn = fromMaybe image 
                                   detector
                                   [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d13-1-cx1/dt/cirpad.1/image")) ]
                                 ]
+                MarsCx3Sbs -> [ DataSourcePath'Image'Hdf5
+                               detector
+                               [ DataSourcePath'Dataset (hdf5p $ datasetpattr ("long_name", "d03-1-c00/dt/pilatus.1/image"))
+                               , DataSourcePath'Dataset (hdf5p $ datasetpattr ("interpretation", "image"))
+                               ]
+                             ]
                 MarsFlyscan -> [ DataSourcePath'Image'Hdf5
                                 detector
                                 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 (datasetp "scan_data/merlin_image"))
@@ -802,6 +829,7 @@ mk'Timestamp'Path inputtype msub = Prelude.map f timestamp
                CristalK6C        -> sbs
                Custom            -> undefined
                DiffabsCirpad     -> sbs
+               MarsCx3Sbs        -> sbs
                MarsFlyscan       -> fly
                MarsSbs           -> sbs
                SixsFlyMedH       -> fly
@@ -828,6 +856,7 @@ mk'Timescan0'Path inputtype msub =
                       CristalK6C        -> timescan0'Sbs
                       Custom            -> undefined
                       DiffabsCirpad     -> timescan0'Sbs
+                      MarsCx3Sbs        -> timescan0'Sbs
                       MarsFlyscan       -> timescan0'Sbs
                       MarsSbs           -> timescan0'Sbs
                       SixsFlyMedH       -> timescan0'Fly
