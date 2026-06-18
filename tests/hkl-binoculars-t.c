@@ -33,7 +33,6 @@
 #include <hkl-axis-private.h>
 #include <hkl-binoculars-private.h>
 
-
 static int check_sha256(const uint8_t *buffer, size_t length, const char* fingerprint, int n)
 {
 	int res = TRUE;
@@ -105,6 +104,7 @@ static void coordinates_get(void)
 		"8e79155d882a5af83202bd8e5546ce7f64ffbe7f8cb665f21e2cbc9f77c811fe",
 #endif
 		"c5a68aa2d84bf11c4a1fb38a2830f6da1e6bcc75bccc87035e26519ee57ce35d",
+		"0f1c88affde3e4fa2f46237056cc937c317966e1df522462301a383e737101f2",
 	};
 
         for(int i=0; i<HKL_BINOCULARS_DETECTOR_NUM_DETECTORS; ++i){
@@ -160,6 +160,7 @@ static void mask_get(void)
 		"0f451b99cf4316ad57d46d4e399d11a1928790d3ec11a8790069b65a3d3d177c",
 		"d37a5d7abcc9d895f232ec4be6ef49af7c77f133808e392576f0e6a96a2f8fcd",
 		"fad1fd1073a50dd69fd93888376f857c2b03a410a005de4df3457f0eb968a91a",
+		"ebfc99da3d9bfeafe3fdd474cb27f9a265f076315ff95f55bd37fc6c6bbfdf66",
 	};
 
         for(int i=0; i<HKL_BINOCULARS_DETECTOR_NUM_DETECTORS; ++i){
@@ -609,6 +610,7 @@ static void hkl_projection(void)
 		{-13,-1, 0},
 		{-18, 0,-1},
 		{-14,-2, -3},
+		{-14,-8, -9},
 	};
 
         static ptrdiff_t imax[HKL_BINOCULARS_DETECTOR_NUM_DETECTORS][3] = {
@@ -622,6 +624,7 @@ static void hkl_projection(void)
 		{0, 33, 15},
 		{0, 33, 36},
 		{1, 33, 15},
+		{3, 34, 15},
 	};
 
         for(n=0; n<HKL_BINOCULARS_DETECTOR_NUM_DETECTORS; ++n){
@@ -748,6 +751,7 @@ static void test_projection(void)
 		{-13,-1, 0},
 		{-18, 0,-1},
 		{-14,-2, -3},
+		{-14,-8, -9},
 	};
 
         static ptrdiff_t imax[HKL_BINOCULARS_DETECTOR_NUM_DETECTORS][3] = {
@@ -761,6 +765,7 @@ static void test_projection(void)
 		{0, 33, 15},
 		{0, 33, 36},
 		{1, 33, 15},
+		{3, 34, 15},
 	};
 
         for(n=0; n<HKL_BINOCULARS_DETECTOR_NUM_DETECTORS; ++n){

@@ -176,6 +176,15 @@ struct tilling_t {
                         .border_masked=border_masked_,                  \
                         }
 
+struct pilatus_cdte_t {
+	struct tilling_t tilling;
+};
+
+#define PILATUS_CDTE							\
+	(struct pilatus_cdte_t){					\
+		.tilling=TILLING(487, 195, 7, 17, 172e-6, true, true, 0) \
+			}
+
 datatype(
         DetectorType,
         (ImXpadS70, struct imxpad_t),
@@ -188,7 +197,7 @@ datatype(
         (MerlinMedipix3RXQuad512, struct tilling_t),
         (Cirpad, struct cirpad_t),
 	(RigakuXspa1M, struct square_t),
-	(PilatusCdTe2M, struct tilling_t)
+	(PilatusCdTe2M, struct pilatus_cdte_t)
         );
 
 struct detector_t {
@@ -224,7 +233,7 @@ static inline struct detector_t get_detector(HklBinocularsDetectorEnum n)
 		DETECTOR(RigakuXspa1M,
 			 SHAPE(1034, 1104), SQUARE(76e-6)),
                 DETECTOR(PilatusCdTe2M,
-                         SHAPE(1475, 1679), TILLING(487, 195, 7, 17, 172e-6, true, true, 0)),
+                         SHAPE(1475, 1679), PILATUS_CDTE),
         };
 
         if (n > ARRAY_SIZE(detectors))

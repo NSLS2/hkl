@@ -1,12 +1,15 @@
 # -*- org -*-
 
 * 5.1.10 UNRELEASED
+** Binoculars (C-library)
+   - Added the =PilatusCdTe2M= detector.
 ** Binoculars-ng (Haskell Program)
    - Added support for axes shifts. under the =geometry.values=
      section you can add =<axis>_shift = <n>=. Sometimes , images /
      attenuations / motors, are saved with a shift (problem with the
      hardware or the acquisition chain). It is then possible to
      adjuste the shift for each motor using these parameters.
+   - Added the =PilatusCdTe2M= detector for the Soleil MArs Beamline.
 * 5.1.9 <2026-05-19 mar.>
 ** Binoculars-ng (Haskell program)
    - Added support for mars mesh. (2D scan).

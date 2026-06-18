@@ -390,6 +390,25 @@ static uint8_t *mask_get_rigaku_xspa_1m(const struct shape_t *shape)
         return arr;
 }
 
+static uint8_t *mask_get_pilatus_cdte(const struct shape_t *shape,
+				      const struct pilatus_cdte_t *pilatus_cdte)
+{
+	size_t column;
+	static size_t width = 3; /* mask 3 pixels at the center of the module */
+	size_t module_width = pilatus_cdte->tilling.module_width;
+
+	uint8_t *arr = mask_get_tilling(shape, &pilatus_cdte->tilling);
+	if (NULL != arr){
+		for(column = module_width / 2 - 1;
+		    column < shape->width;
+		    column += module_width){
+			mask_add_vertical_strip(arr, shape, column, width);
+		}
+	}
+
+	return arr;
+}
+
 /***************/
 /* Calibration */
 /***************/
@@ -535,9 +554,9 @@ double *hkl_binoculars_detector_2d_coordinates_get(HklBinocularsDetectorEnum n)
 						     square);
                         flip_z(&detector.shape, arr);
 		}
-                of(PilatusCdTe2M, tilling){
+                of(PilatusCdTe2M, pilatus){
                         arr = coordinates_get_square(&detector.shape,
-                                                     &tilling->square);
+                                                     &pilatus->tilling.square);
                         flip_z(&detector.shape, arr);
                 }
         }
@@ -649,9 +668,9 @@ uint8_t *hkl_binoculars_detector_2d_mask_get(HklBinocularsDetectorEnum n)
 		of(RigakuXspa1M, _){
 			arr = mask_get_rigaku_xspa_1m(&detector.shape);
 		}
-                of(PilatusCdTe2M, tilling){
-                        arr = mask_get_tilling(&detector.shape,
-                                               tilling);
+                of(PilatusCdTe2M, pilatus){
+                        arr = mask_get_pilatus_cdte(&detector.shape,
+						    pilatus);
                 }
                 otherwise {
                         arr = no_mask(&detector.shape);
