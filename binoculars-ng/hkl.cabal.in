@@ -18,6 +18,10 @@ Data-Files:          data/ghkl3.ui
                    , data/gprof2dot.py
                    , data/pseudo3.ui
                    , data/3d3.ui
+                   , data/test/config_ech6eiger.txt
+                   , data/test/config_sixs_ruche_parsing.ini
+                   , data/test/config_geometry_custom.ini
+                   , data/test/scan_0030_0001.nxs_02.poni
 
 Flag useHklDev
   Description: Use the current devel hkl library in the source tree
@@ -118,6 +122,14 @@ library
   exposed-modules: Hkl.Orphan
   exposed-modules: Hkl.Parameter
   exposed-modules: Hkl.Pipes
+  exposed-modules: Hkl.PyFAI
+  exposed-modules: Hkl.PyFAI.AzimuthalIntegrator
+  exposed-modules: Hkl.PyFAI.Calib
+  exposed-modules: Hkl.PyFAI.Calibrant
+  exposed-modules: Hkl.PyFAI.Detector
+  exposed-modules: Hkl.PyFAI.Npt
+  exposed-modules: Hkl.PyFAI.Poni
+  exposed-modules: Hkl.PyFAI.PoniExt
   exposed-modules: Hkl.Repa
   exposed-modules: Hkl.Sample
   exposed-modules: Hkl.Types
@@ -218,6 +230,7 @@ test-suite hkl-test
 
   other-modules: BinocularsSpec
   other-modules: Paths_hkl
+  other-modules: PyFAISpec
 
   type: exitcode-stdio-1.0
 

@@ -68,6 +68,7 @@ data ZeroD deriving (Eq, Show)
 
 data Detector a sh where
   ImXpadS140 :: Detector PyFAI DIM2
+  PilatusCdTe2M :: Detector PyFAI DIM2
   Xpad32 :: Detector PyFAI DIM2
   XpadFlatCorrected :: Detector PyFAI DIM2
   ZeroD :: Detector ZeroD DIM0
@@ -151,6 +152,7 @@ instance Eq SomeDetector where
 
 shape :: Detector a sh -> sh
 shape ImXpadS140         = ix2 240 560 -- y x
+shape PilatusCdTe2M      = ix2 1679 1475
 shape Xpad32             = ix2 960 560
 shape XpadFlatCorrected  = ix2 1154 576
 shape ZeroD              = Z

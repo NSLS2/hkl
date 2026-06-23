@@ -1,0 +1,14 @@
+# Nota: C-Order, 1 refers to the Y axis, 2 to the X axis
+# Calibration done on Fri May 22 18:21:20 2026
+poni_version: 2.1
+Detector: PilatusCdTe2M
+Detector_config: {"pixel1": 0.000172, "pixel2": 0.000172, "orientation": 3}
+Distance: 0.6766662219456674
+Poni1: 0.1460648413517324
+Poni2: 0.13025819026342852
+Rot1: 0.003642703476751769
+Rot2: 0.17228456551576615
+Rot3: 1.3824486583007656e-12
+Wavelength: 7.293188143129427e-11
+# Calibrant: LaB6
+# Image: /nfs/ruche/mars-soleil/com-mars/2026/2026_Run2/20252223/published-data/scan_0034_0001.nxs.edf

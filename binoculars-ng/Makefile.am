@@ -47,6 +47,14 @@ binoculars_ng_SOURCES=\
 	src/Hkl/Orphan.hs \
 	src/Hkl/Parameter.hs \
 	src/Hkl/Pipes.hs \
+	src/Hkl/PyFAI.hs \
+	src/Hkl/PyFAI/AzimuthalIntegrator.hs \
+	src/Hkl/PyFAI/Calib.hs \
+	src/Hkl/PyFAI/Calibrant.hs \
+	src/Hkl/PyFAI/Detector.hs \
+	src/Hkl/PyFAI/Npt.hs \
+	src/Hkl/PyFAI/Poni.hs \
+	src/Hkl/PyFAI/PoniExt.hs \
 	src/Hkl/Repa.hs \
 	src/Hkl/Sample.hs \
 	src/Hkl/Types.hs \
@@ -93,7 +101,9 @@ test_sources=\
 	data/test/config_ech6eiger.txt \
 	data/test/config_geometry_custom.ini \
 	data/test/config_sixs_ruche_parsing.ini \
+	data/test/scan_0030_0001.nxs_02.poni \
 	test/BinocularsSpec.hs \
+	test/PyFAISpec.hs \
 	test/Spec.hs
 
 hkl-test$(EXEEXT): $(test_sources) $(binoculars_ng_SOURCES)
