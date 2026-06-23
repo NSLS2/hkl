@@ -133,8 +133,8 @@ getDataPath c
 -------------------------
 
 {-# INLINE spaceAngles #-}
-spaceAngles :: Detector a DIM2 -> Array F DIM3 Double -> Resolutions DIM3 -> Maybe (RLimits DIM3) -> SampleAxis -> Space DIM2 -> DataFrameQCustom -> IO (DataFrameSpace DIM2)
-spaceAngles det pixels rs mlimits sAxis space@(Space fSpace) (DataFrameQCustom att g img mmask flat _ _ _) =
+spaceAngles :: Detector a DIM2 -> Resolutions DIM3 -> Maybe (RLimits DIM3) -> SampleAxis -> Space DIM2 -> DataFrameQCustom -> IO (DataFrameSpace DIM2)
+spaceAngles det rs mlimits sAxis space@(Space fSpace) (DataFrameQCustom att g pixels img mmask flat _ _ _) =
   withNPixels det $ \nPixels ->
   withGeometry g $ \geometry ->
   withForeignPtr (toForeignPtr flat) $ \c'flat ->
@@ -173,9 +173,6 @@ processAnglesP = do
   let det = binocularsConfig'Common'Detector common
   let (NCores cap) =  binocularsConfig'Common'NCores common
   let destination = binocularsConfig'Common'Destination common
-  let centralPixel' = binocularsConfig'Common'Centralpixel common
-  let (Meter sampleDetectorDistance) = binocularsConfig'Common'Sdd common
-  let (Degree detrot) = binocularsConfig'Common'Detrot common
   let mImageSumMax = binocularsConfig'Common'ImageSumMax common
   let inputRange = binocularsConfig'Common'InputRange common
   let nexusDir = binocularsConfig'Common'Nexusdir common
@@ -193,7 +190,6 @@ processAnglesP = do
   let datapaths = getDataPath conf
   output' <- liftIO $ destination' projectionType Nothing inputRange mlimits destination overwrite
   filenames <- InputFn'List <$> files nexusDir inputRange tmpl
-  pixels <- liftIO $ getPixelsCoordinates det centralPixel' sampleDetectorDistance detrot Normalisation
   let fns = concatMap (replicate 1) (toList filenames)
   chunks' <- liftIO $ runSafeT $ toListM $ each fns >-> chunkP mSkipFirstPoints mSkipLastPoints datapaths
   let chunks = Prelude.map fst chunks'
@@ -214,7 +210,7 @@ processAnglesP = do
     each chunks
     >-> Pipes.Prelude.map quadChunk
     >-> framesP datapaths
-    >-> project det 3 (spaceAngles det pixels res mlimits sampleAxis)
+    >-> project det 3 (spaceAngles det res mlimits sampleAxis)
     >-> accumulateP c
 
   logDebugN "stop gessing final cube size"
@@ -229,8 +225,8 @@ processAnglesP = do
                              each job
                              >-> Pipes.Prelude.map allChunk
                              >-> framesP datapaths
-                             >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ img _ _ _ _ _) -> filterSumImage mImageSumMax img)
-                             >-> project det 3 (spaceAngles det pixels res mlimits sampleAxis)
+                             >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ _ img _ _ _ _ _) -> filterSumImage mImageSumMax img)
+                             >-> project det 3 (spaceAngles det res mlimits sampleAxis)
                              >-> tee (accumulateP c)
                              >-> progress pb
                          ) jobs

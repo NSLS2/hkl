@@ -91,6 +91,7 @@ data DataFrameQCustom
     = DataFrameQCustom
       Attenuation -- attenuation
       Geometry -- geometry
+      PixelCoordinates -- pixels 3D coordinates
       Image -- image
       (Maybe Mask) -- mask
       Flat -- flat
@@ -103,6 +104,7 @@ data DSDataFrameQCustom (k :: DSKind)
     = DataSource'DataFrameQCustom
       (DSWrap_ DSAttenuation k)
       (DSWrap_ DSGeometry k)
+      (DSWrap_ DSPixelCoordinates k)
       (DSWrap_ DSImage k)
       (DSWrap_ DSMask k)
       (DSWrap_ DSFlat k)
@@ -120,10 +122,11 @@ instance ToJSON (DSDataFrameQCustom DSPath)
 
 
 instance Is1DStreamable (DSDataFrameQCustom DSAcq) DataFrameQCustom where
-    extract1DStreamValue (DataSource'DataFrameQCustom att geom img msk flat idx t0 s) i =
+    extract1DStreamValue (DataSource'DataFrameQCustom att geom pixels img msk flat idx t0 s) i =
       DataFrameQCustom
       <$> extract1DStreamValue att i
       <*> extract1DStreamValue geom i
+      <*> extract1DStreamValue pixels i
       <*> extract1DStreamValue img i
       <*> extract0DStreamValue msk
       <*> extract0DStreamValue flat
@@ -132,10 +135,11 @@ instance Is1DStreamable (DSDataFrameQCustom DSAcq) DataFrameQCustom where
       <*> extract0DStreamValue s
 
 instance Is2DStreamable (DSDataFrameQCustom DSAcq) DataFrameQCustom where
-    extract2DStreamValue (DataSource'DataFrameQCustom att geom img msk flat idx t0 s) i =
+    extract2DStreamValue (DataSource'DataFrameQCustom att geom pixels img msk flat idx t0 s) i =
       DataFrameQCustom
       <$> extract2DStreamValue att i
       <*> extract2DStreamValue geom i
+      <*> extract2DStreamValue pixels i
       <*> extract2DStreamValue img i
       <*> extract0DStreamValue msk
       <*> extract0DStreamValue flat
@@ -786,6 +790,16 @@ mk'Mask'Path c
                     (binocularsConfig'Common'Detector c)
       ]
 
+-- PixelCoordinates Path
+
+mk'PixelCoordinates'Path :: Config Common -> DSWrap_ DSPixelCoordinates DSPath
+mk'PixelCoordinates'Path c
+    = let detector = binocularsConfig'Common'Detector c
+          pixel0 = binocularsConfig'Common'CentralPixel c
+          sdd = binocularsConfig'Common'Sdd c
+          detrot = binocularsConfig'Common'Detrot c
+      in [ DataSourcePath'PixelCoordinates detector pixel0 sdd detrot NoNormalisation ]
+
 -- Timestamp Path
 
 mk'Timestamp'Path :: InputType -> Maybe HklBinocularsQCustomSubProjectionEnum -> DSWrap_ DSTimestamp DSPath
@@ -922,6 +936,7 @@ guess'DataSource'DataFrameQCustom common msub cfg =
     in [ DataSource'DataFrameQCustom
          ( mk'Attenuation'Path inputtype mAttenuationCoefficient mAttenuationMax mAttenuationShift )
          ( mk'Geometry'Path inputtype mWavelength geometry shifts cfg )
+         ( mk'PixelCoordinates'Path common )
          ( mk'Image'Path inputtype mImage detector sn0 )
          ( mk'Mask'Path common )
          ( mk'Flat'Path common )
@@ -940,7 +955,6 @@ getDataPath c
 
 {-# INLINE spaceQCustom #-}
 spaceQCustom :: Detector a DIM2
-             -> Array F DIM3 Double
              -> Resolutions DIM3
              -> HklBinocularsSurfaceOrientationEnum
              -> Maybe (RLimits DIM3)
@@ -952,7 +966,7 @@ spaceQCustom :: Detector a DIM2
              -> Space DIM3
              -> DataFrameQCustom
              -> IO (DataFrameSpace DIM3)
-spaceQCustom det pixels rs surf mlimits subprojection uqx uqy uqz mSampleAxis polarisation mdmask space@(Space fSpace) (DataFrameQCustom att g img mmask flat index timescan0 scannumber) =
+spaceQCustom det rs surf mlimits subprojection uqx uqy uqz mSampleAxis polarisation mdmask space@(Space fSpace) (DataFrameQCustom att g pixels img mmask flat index timescan0 scannumber) =
   withGeometry g $ \c'geometry ->
   withForeignPtr (toForeignPtr pixels) $ \c'pix ->
   withForeignPtr fSpace $ \c'pSpace ->
@@ -1008,9 +1022,6 @@ processQCustomP = do
   let det = binocularsConfig'Common'Detector common
   let (NCores cap) =  binocularsConfig'Common'NCores common
   let destination = binocularsConfig'Common'Destination common
-  let centralPixel' = binocularsConfig'Common'Centralpixel common
-  let (Meter sampleDetectorDistance) = binocularsConfig'Common'Sdd common
-  let (Degree detrot) = binocularsConfig'Common'Detrot common
   let mImageSumMax = binocularsConfig'Common'ImageSumMax common
   let inputRange = binocularsConfig'Common'InputRange common
   let nexusDir = binocularsConfig'Common'Nexusdir common
@@ -1036,7 +1047,6 @@ processQCustomP = do
   -- built from the config
   output' <- liftIO $ destination' projectionType (Just subprojection) inputRange mlimits destination overwrite
   filenames <- InputFn'List <$> files nexusDir inputRange tmpl
-  pixels <- liftIO $ getPixelsCoordinates det centralPixel' sampleDetectorDistance detrot NoNormalisation
 
   logDebugNSH filenames
 
@@ -1064,7 +1074,7 @@ processQCustomP = do
     each chunks
     >-> Pipes.Prelude.map quadChunk
     >-> framesP datapaths
-    >-> project det 3 (spaceQCustom det pixels res surfaceOrientation mlimits subprojection uqx uqy uqz mSampleAxis doPolarizationCorrection mdmask)
+    >-> project det 3 (spaceQCustom det res surfaceOrientation mlimits subprojection uqx uqy uqz mSampleAxis doPolarizationCorrection mdmask)
     >-> accumulateP c
 
   logDebugN "stop gessing final cube size"
@@ -1079,8 +1089,8 @@ processQCustomP = do
                              each job
                              >-> Pipes.Prelude.map allChunk
                              >-> framesP datapaths
-                             >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ img _ _ _ _ _) -> filterSumImage mImageSumMax img)
-                             >-> project det 3 (spaceQCustom det pixels res surfaceOrientation mlimits subprojection uqx uqy uqz mSampleAxis doPolarizationCorrection mdmask)
+                             >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ _ img _ _ _ _ _) -> filterSumImage mImageSumMax img)
+                             >-> project det 3 (spaceQCustom det res surfaceOrientation mlimits subprojection uqx uqy uqz mSampleAxis doPolarizationCorrection mdmask)
                              >-> tee (accumulateP c)
                              >-> progress pb
                          ) jobs

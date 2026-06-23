@@ -792,12 +792,6 @@ instance HasFieldValue MaskLocation where
 
 -- Meter
 
-newtype Meter = Meter { unMeter :: Length Double }
-    deriving (Eq, Show)
-
-instance Arbitrary Meter where
-  arbitrary = Meter . (*~ meter) <$> arbitrary
-
 instance HasFieldValue Meter where
   fieldvalue = FieldValue
     { fvParse =  mapRight (Meter . (*~ meter)) . fvParse auto

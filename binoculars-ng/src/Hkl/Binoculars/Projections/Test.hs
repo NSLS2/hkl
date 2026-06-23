@@ -174,8 +174,8 @@ getDataPath c
 ----------------
 
 {-# INLINE spaceTest #-}
-spaceTest :: Detector b DIM2 -> Array F DIM3 Double -> Resolutions DIM3 -> Maybe (RLimits DIM3) -> PolarisationCorrection -> Maybe DynamicMask -> Space DIM3 -> DataFrameTest -> IO (DataFrameSpace DIM3)
-spaceTest det pixels rs mlimits polarisation mdmask space@(Space fSpace) (DataFrameTest (DataFrameQCustom att g img mmask flat _ _ _) samplePath) =
+spaceTest :: Detector b DIM2 -> Resolutions DIM3 -> Maybe (RLimits DIM3) -> PolarisationCorrection -> Maybe DynamicMask -> Space DIM3 -> DataFrameTest -> IO (DataFrameSpace DIM3)
+spaceTest det rs mlimits polarisation mdmask space@(Space fSpace) (DataFrameTest (DataFrameQCustom att g pixels img mmask flat _ _ _) samplePath) =
     withNPixels det $ \nPixels ->
     withForeignPtr (toForeignPtr flat) $ \ c'flat ->
     withForeignPtr (toForeignPtr pixels) $ \pix ->
@@ -215,9 +215,6 @@ processTestP = do
   let det = binocularsConfig'Common'Detector common
   let (NCores cap) =  binocularsConfig'Common'NCores common
   let destination = binocularsConfig'Common'Destination common
-  let centralPixel' = binocularsConfig'Common'Centralpixel common
-  let (Meter sampleDetectorDistance) = binocularsConfig'Common'Sdd common
-  let (Degree detrot) = binocularsConfig'Common'Detrot common
   let mImageSumMax = binocularsConfig'Common'ImageSumMax common
   let inputRange = binocularsConfig'Common'InputRange common
   let nexusDir = binocularsConfig'Common'Nexusdir common
@@ -237,7 +234,6 @@ processTestP = do
   let datapaths = getDataPath conf
   output' <- liftIO $ destination' projectionType Nothing inputRange mlimits destination overwrite
   filenames <- InputFn'List <$> files nexusDir inputRange tmpl
-  pixels <- liftIO $ getPixelsCoordinates det centralPixel' sampleDetectorDistance detrot NoNormalisation
 
   let fns = concatMap (replicate 1) (toList filenames)
   chunks' <- liftIO $ runSafeT $ toListM $ each fns >-> chunkP mSkipFirstPoints mSkipLastPoints datapaths
@@ -259,7 +255,7 @@ processTestP = do
     each chunks
     >-> Pipes.Prelude.map quadChunk
     >-> framesP datapaths
-    >-> project det 3 (spaceTest det pixels res mlimits doPolarizationCorrection mdmask)
+    >-> project det 3 (spaceTest det res mlimits doPolarizationCorrection mdmask)
     >-> accumulateP c
 
   logDebugN "stop gessing final cube size"
@@ -273,8 +269,8 @@ processTestP = do
                              >-> Pipes.Prelude.map allChunk
                              -- >-> tee Pipes.Prelude.print
                              >-> framesP datapaths
-                             >-> Pipes.Prelude.filter (\(DataFrameTest (DataFrameQCustom _ _ img _ _ _ _ _) _) -> filterSumImage mImageSumMax img)
-                             >-> project det 3 (spaceTest det pixels res mlimits doPolarizationCorrection mdmask)
+                             >-> Pipes.Prelude.filter (\(DataFrameTest (DataFrameQCustom _ _ _ img _ _ _ _ _) _) -> filterSumImage mImageSumMax img)
+                             >-> project det 3 (spaceTest det res mlimits doPolarizationCorrection mdmask)
                              >-> tee (accumulateP c)
                              >-> progress pb
                          ) jobs

@@ -74,7 +74,7 @@ instance HasIniConfig Common where
           , binocularsConfig'Common'InputRange             :: ConfigRange
           , binocularsConfig'Common'Detector               :: Detector Hkl DIM2
           , binocularsConfig'Common'Image                  :: Maybe (DSWrap_ DSImage DSPath) -- TODO document...
-          , binocularsConfig'Common'Centralpixel           :: (Int, Int)
+          , binocularsConfig'Common'CentralPixel           :: (Int, Int)
           , binocularsConfig'Common'Sdd                    :: Meter
           , binocularsConfig'Common'Detrot                 :: Degree
           , binocularsConfig'Common'AttenuationCoefficient :: Maybe Double
@@ -108,7 +108,7 @@ instance HasIniConfig Common where
           , binocularsConfig'Common'InputRange  = ConfigRange (InputRange (Numeric.Interval.singleton 1) :| [])
           , binocularsConfig'Common'Detector = defaultDetector
           , binocularsConfig'Common'Image = Nothing
-          , binocularsConfig'Common'Centralpixel = (0, 0)
+          , binocularsConfig'Common'CentralPixel = (0, 0)
           , binocularsConfig'Common'Sdd = Meter (1 *~ meter)
           , binocularsConfig'Common'Detrot = Degree (0 *~ degree)
           , binocularsConfig'Common'AttenuationCoefficient = Nothing
@@ -220,7 +220,7 @@ instance HasIniConfig Common where
                                             )
                                            <> elemFMbDef "images" binocularsConfig'Common'Image c defaultConfig
                                             [ "where to find the image in the files JSON encoded" ]
-                                           <> elemFDef "centralpixel" binocularsConfig'Common'Centralpixel c defaultConfig
+                                           <> elemFDef "centralpixel" binocularsConfig'Common'CentralPixel c defaultConfig
                                             [ "x,y coordinates in pixels of the direct beam on the detector."
                                             , ""
                                             , "with `sdd` and `detrot` this parameter allow to set the"
@@ -428,10 +428,10 @@ instance HasIniConfig Common where
                                                                    SixsFlyScanUhvUfxc -> mkDetector HklBinocularsDetectorEnum'Ufxc
                                             )
          binocularsConfig'Common'Image <- parseMb cfg "input" "images"
-         binocularsConfig'Common'Centralpixel <- eitherF error (parse' cfg "input" "centralpixel")
+         binocularsConfig'Common'CentralPixel <- eitherF error (parse' cfg "input" "centralpixel")
                                                 (\mc -> do
                                                    case mc of
-                                                     Nothing -> pure (binocularsConfig'Common'Centralpixel defaultConfig)
+                                                     Nothing -> pure (binocularsConfig'Common'CentralPixel defaultConfig)
                                                      Just c -> if c `inDetector` binocularsConfig'Common'Detector
                                                               then pure c
                                                               else error $ "The central pixel " <> show c <> " is not compatible with the detector")

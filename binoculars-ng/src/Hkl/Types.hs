@@ -5,7 +5,9 @@
 module Hkl.Types ( AbsDirPath
                  , Beamline(..)
                  , ConfigContent(..)
+                 , Degree(..)
                  , Key
+                 , Meter(..)
                  , SampleName
                  , ScanFile(..)
                  , ScanFilePath(..)
@@ -15,16 +17,16 @@ module Hkl.Types ( AbsDirPath
                  , Timescan0(..)
                  , Trajectory
                  , beamlineUpper
-                 , module X
                  ) where
 
-import           Data.Aeson  (FromJSON (..), ToJSON (..))
-import           Data.Char   (toUpper)
-import           Data.String (IsString)
-import           Data.Text   (Text)
-import           Path        (Abs, File, Path)
-
-import           Hkl.Lattice as X
+import           Data.Aeson                        (FromJSON (..), ToJSON (..))
+import           Data.Char                         (toUpper)
+import           Data.String                       (IsString)
+import           Data.Text                         (Text)
+import           Numeric.Units.Dimensional.Prelude (Angle, Length, degree,
+                                                    meter, (*~), (/~))
+import           Path                              (Abs, File, Path)
+-- import           Test.QuickCheck                   (Arbitrary (..))
 
 -- Common
 
@@ -47,6 +49,34 @@ beamlineUpper b = [toUpper x | x ← show b]
 newtype ConfigContent
   = ConfigContent Text
   deriving (IsString, Show, FromJSON, ToJSON)
+
+-- Degree
+
+newtype Degree = Degree { unDegree :: Angle Double }
+    deriving (Eq, Show)
+
+-- instance Arbitrary Degree where
+--   arbitrary = Degree . (*~ degree) <$> arbitrary
+
+instance FromJSON Degree where
+  parseJSON = fmap (Degree . (*~ degree)) . parseJSON
+
+instance ToJSON Degree where
+  toJSON = toJSON . (/~ degree) . unDegree
+
+-- Meter
+
+newtype Meter = Meter { unMeter :: Length Double }
+    deriving (Eq, Show)
+
+-- instance Arbitrary Meter where
+--   arbitrary = Meter . (*~ meter) <$> arbitrary
+
+instance FromJSON Meter where
+  parseJSON = fmap (Meter . (*~ meter)) . parseJSON
+
+instance ToJSON Meter where
+  toJSON = toJSON . (/~ meter) . unMeter
 
 -- Key
 

@@ -42,6 +42,7 @@ module Hkl.DataSource
   , DSGeometry(..)
   , DSImage(..)
   , DSMask(..)
+  , DSPixelCoordinates(..)
   , DSTimestamp(..)
   , DSTimescan0(..)
   , DSScannumber(..)
@@ -149,6 +150,9 @@ instance Is0DStreamable (DSMask DSAcq) (Maybe Mask) where
     extract0DStreamValue DataSourceAcq'Mask'NoMask = pure Nothing
     extract0DStreamValue (DataSourceAcq'Mask m)    = pure $ Just m
 
+instance Is0DStreamable (DSPixelCoordinates  DSAcq) PixelCoordinates where
+    extract0DStreamValue (DataSourceAcq'PixelCoordinates'Const p) = pure p
+
 instance Is0DStreamable (DSScannumber DSAcq) Scannumber where
     extract0DStreamValue (DataSourceAcq'Scannumber'Const sn) = pure sn
 
@@ -219,6 +223,9 @@ instance Is1DStreamable (DSImage DSAcq) Image where
     extract1DStreamValue (DataSourceAcq'Image'Hdf5'Word32 det ds buf) i       = ImageWord32 <$> getArrayInBuffer buf det ds (Z :. i)
     extract1DStreamValue (DataSourceAcq'Image'Img'Int32 det buf tmpl sn fn) i = ImageInt32 <$> readImgInBuffer buf det (fn tmpl sn i)
 
+instance Is1DStreamable (DSPixelCoordinates  DSAcq) PixelCoordinates where
+    extract1DStreamValue p _ = extract0DStreamValue p
+
 instance Is1DStreamable (DSTimestamp DSAcq) Timestamp where
     extract1DStreamValue (DataSourceAcq'Timestamp'Hdf5 ds) i   = Timestamp <$> extract1DStreamValue ds i
     extract1DStreamValue DataSourceAcq'Timestamp'NoTimestamp _ = pure $ Timestamp 0
@@ -282,6 +289,9 @@ instance Is2DStreamable (DSImage DSAcq) Image where
     extract2DStreamValue (DataSourceAcq'Image'Hdf5'Word16 det ds buf) i       = ImageWord16 <$> getArrayInBuffer buf det ds i
     extract2DStreamValue (DataSourceAcq'Image'Hdf5'Word32 det ds buf) i       = ImageWord32 <$> getArrayInBuffer buf det ds i
     extract2DStreamValue (DataSourceAcq'Image'Img'Int32 _det _buf _tmpl _sn _fn) _i = undefined
+
+instance Is2DStreamable (DSPixelCoordinates  DSAcq) PixelCoordinates where
+    extract2DStreamValue p _ = extract0DStreamValue p
 
 instance Is2DStreamable (DSTimestamp DSAcq) Timestamp where
     extract2DStreamValue (DataSourceAcq'Timestamp'Hdf5 ds) i   = Timestamp <$> extract2DStreamValue ds i
@@ -358,6 +368,7 @@ instance GDSAK1 Geometry
 instance GDSAK1 Int
 instance GDSAK1 (IOVector a)
 instance GDSAK1 Mask
+instance GDSAK1 PixelCoordinates
 instance GDSAK1 Scannumber
 instance GDSAK1 Text
 instance GDSAK1 (Text -> Scannumber -> Int -> FilePath)
@@ -765,6 +776,24 @@ instance DataSource DSMask where
     withDataSourceP (ScanFile _ sn) path@(DataSourcePath'Mask l d) g
         = do  m <- getMask l d sn
               g path (DataSourceAcq'Mask m)
+
+
+-- PixelCoordinates
+
+data family DSPixelCoordinates (k :: DSKind)
+data instance DSPixelCoordinates DSPath
+    = DataSourcePath'PixelCoordinates (Detector Hkl DIM2) (Int, Int) Meter Degree Normalisation
+    deriving (Generic, Show)
+    deriving anyclass (FromJSON, ToJSON)
+
+data instance DSPixelCoordinates DSAcq
+    = DataSourceAcq'PixelCoordinates'Const PixelCoordinates
+    deriving Generic
+
+instance DataSource DSPixelCoordinates where
+    withDataSourceP _ path@(DataSourcePath'PixelCoordinates d c sdd detrot norm) g
+        = do  m <- liftIO $ getPixelsCoordinates d c (unMeter sdd) (unDegree detrot) norm
+              g path (DataSourceAcq'PixelCoordinates'Const m)
 
 -- Scannumber
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass            #-}
+{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE EmptyDataDeriving         #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts          #-}
@@ -12,6 +14,7 @@ module Hkl.Detector
        , Hkl
        , Mask
        , Normalisation(..)
+       , PixelCoordinates
        , PyFAI
        , SomeDetector(..)
        , ZeroD
@@ -48,11 +51,11 @@ import           Foreign.ForeignPtr                (ForeignPtr, castForeignPtr,
 import           Foreign.Marshal.Alloc             (alloca, finalizerFree)
 import           Foreign.Ptr                       (Ptr, nullPtr)
 import           Foreign.Storable                  (peek)
+import           GHC.Generics                      (Generic)
 import           GHC.IO.Unsafe                     (unsafePerformIO)
 import           Numeric.Units.Dimensional.Prelude (Angle, Length, meter,
                                                     radian, (/~))
 import           Test.QuickCheck                   (Arbitrary (..), elements)
-
 
 import           Hkl.C.Binoculars
 import           Hkl.C.Hkl
@@ -95,6 +98,8 @@ instance Arbitrary (Detector Hkl DIM2) where
 type Mask = Array F DIM2 CBool
 
 type Flat = Array F DIM2 CDouble
+
+type PixelCoordinates = Array F DIM3 Double
 
 -- Detector
 
@@ -154,9 +159,10 @@ shape (Detector2D _ _ s) = s
 --  Xpad Family
 
 data Normalisation = NoNormalisation | Normalisation
-  deriving (Enum)
+  deriving (Enum, Generic, Show, FromJSON, ToJSON)
+--  deriving anyclass (FromJSON, ToJSON)
 
-getPixelsCoordinates :: Detector Hkl DIM2 -> (Int, Int) -> Length Double -> Angle Double -> Normalisation -> IO (Array F DIM3 Double)
+getPixelsCoordinates :: Detector Hkl DIM2 -> (Int, Int) -> Length Double -> Angle Double -> Normalisation -> IO PixelCoordinates
 getPixelsCoordinates (Detector2D d _ sh) (ix0, iy0) sdd detrot norm = do
   let n = toEnum . fromEnum $ d
   parr <- c'hkl_binoculars_detector_2d_coordinates_get n

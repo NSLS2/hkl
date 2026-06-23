@@ -15,24 +15,10 @@ import           Foreign                           (ForeignPtr, Ptr,
                                                     withForeignPtr)
 import           Foreign.C.Types                   (CDouble (..))
 import           GHC.Generics                      (Generic)
-import           Numeric.Units.Dimensional.Prelude (Angle, degree, radian, (*~),
-                                                    (/~))
-import           Test.QuickCheck                   (Arbitrary (..))
+import           Numeric.Units.Dimensional.Prelude (degree, radian, (*~), (/~))
 
 import           Hkl.C.Hkl
-
-newtype Degree = Degree { unDegree :: Angle Double }
-    deriving (Eq, Show)
-
-instance Arbitrary Degree where
-  arbitrary = Degree . (*~ degree) <$> arbitrary
-
-instance FromJSON Degree where
-  parseJSON = fmap (Degree . (*~ degree)) . parseJSON
-
-instance ToJSON Degree where
-  toJSON = toJSON . (/~ degree) . unDegree
-
+import           Hkl.Types
 
 --  Lattice
 

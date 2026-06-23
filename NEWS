@@ -10,6 +10,8 @@
      hardware or the acquisition chain). It is then possible to
      adjuste the shift for each motor using these parameters.
    - Added the =PilatusCdTe2M= detector for the Soleil MArs Beamline.
+   - The pixelsCoordinates are now part of the DataFrame. This allows
+     to change these coordinates at each step of the scan.
 * 5.1.9 <2026-05-19 mar.>
 ** Binoculars-ng (Haskell program)
    - Added support for mars mesh. (2D scan).
