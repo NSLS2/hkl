@@ -201,7 +201,7 @@ mars: binoculars-ng
 #	$(PROCESS) data/test/config_mars_ruche_20232102.ini 272
 #	$(PROCESS) /nfs/ruche/mars-soleil/com-mars/2025/2025_Run3/commissioning_CX2/binoculars/config_q_sampleaxis_tth.ini 30-51
 #	$(PROCESS) data/test/config_mars_ruche_4D.ini 295
-	$(PROCESS) data/test/config_mars_poni.ini 30
+	$(PROCESS) data/test/config_mars_poni.ini 31
 
 merge: binoculars-ng
 	$(MERGE) -o merge.hdf5 *.hdf5

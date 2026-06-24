@@ -481,6 +481,33 @@ void hkl_binoculars_detector_2d_sixs_calibration(HklBinocularsDetectorEnum n,
                 normalize_coordinates_xyz(x, y, z, shape);
 }
 
+void hkl_binoculars_detector_2d_pyfai_calibration(HklBinocularsDetectorEnum n,
+						  double *arr,
+						  int width, int height,
+						  double p1, double p2, double sdd,
+						  double rot1, double rot2, double rot3,
+						  int normalize_flag)
+{
+	fprintf(stdout, "%f %f %f %f %f %f\n", p1, p2, sdd, rot1, rot2, rot3);
+
+        const struct shape_t shape = SHAPE(width, height);
+        double *x = x_coordinates(arr, shape);
+        double *y = y_coordinates(arr, shape);
+        double *z = z_coordinates(arr, shape);
+
+        double dx = sdd;
+        double dy = p2;
+        double dz = p1;
+
+        translate_coordinates_xyz(x, y, z, &shape, dx, dy, dz);
+        rotate_coordinates_xyz(x, y, z, &shape, rot1, 0, 0, -1);
+        rotate_coordinates_xyz(x, y, z, &shape, rot2, 0, -1, 0);
+        rotate_coordinates_xyz(x, y, z, &shape, rot3, 1, 0, 0);
+        if(normalize_flag)
+                normalize_coordinates_xyz(x, y, z, shape);
+}
+
+
 /*****************************/
 /* public API implementation */
 /*****************************/

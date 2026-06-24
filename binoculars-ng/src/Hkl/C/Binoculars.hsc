@@ -174,6 +174,7 @@ instance Enum HklBinocularsDetectorEnum where
 #ccall hkl_binoculars_detector_2d_number_of_detectors, IO CInt
 #ccall hkl_binoculars_detector_2d_shape_get, <HklBinocularsDetectorEnum> -> Ptr CInt -> Ptr CInt -> IO ()
 #ccall hkl_binoculars_detector_2d_sixs_calibration, <HklBinocularsDetectorEnum> -> Ptr CDouble -> CInt -> CInt -> CInt -> CInt -> CDouble -> CDouble -> CInt -> IO ()
+#ccall hkl_binoculars_detector_2d_pyfai_calibration, <HklBinocularsDetectorEnum> -> Ptr CDouble -> CInt -> CInt -> CDouble -> CDouble -> CDouble -> CDouble -> CDouble -> CDouble -> CInt -> IO ()
 
 -----------
 -- Space --

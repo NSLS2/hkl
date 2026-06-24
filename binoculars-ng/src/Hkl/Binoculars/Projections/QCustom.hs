@@ -60,7 +60,8 @@ import           Numeric.Units.Dimensional.Prelude (Angle, degree, radian, (*~),
                                                     (/~))
 import           Path                              (Abs, Dir, Path)
 import           Pipes                             (each, runEffect, (>->))
-import           Pipes.Prelude                     (filter, map, tee, toListM)
+import           Pipes.Prelude                     (filter, map, print, tee,
+                                                    toListM)
 import           Pipes.Safe                        (runSafeT)
 import           Text.Printf                       (printf)
 
@@ -608,20 +609,30 @@ mk'Axes'Path inputtype shifts cfg = axes
                                  ]
                                ]
                MarsCx3Sbs -> [ DataSourcePath'List
-                              [ mk'Axis'Path shifts "phi" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx0/ex/spt_mf-mt_rz/position")) ]
-                                                          , DataSourcePath'Double'Const 0
+                              [ -- mk'Axis'Path shifts "phi" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx0/ex/spt_mf-mt_rz/position")) ]
+                              --                             , DataSourcePath'Double'Const 0
+                              --                             ]
+                              -- , mk'Axis'Path shifts "omega" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx0/ex/spt_mf-mt_rx/position")) ]
+                              --                               , DataSourcePath'Double'Const 0
+                              --                               ]
+                              -- , mk'Axis'Path shifts "ty" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_tx/position")) ]
+                              --                            , DataSourcePath'Double'Const 0
+                              --                            ]
+                              -- , mk'Axis'Path shifts "tth" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_rx/position")) ]
+                              --                             , DataSourcePath'Double'Const 0
+                              --                             ]
+                              -- , mk'Axis'Path shifts "tx" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_ts/position")) ]
+                              --                            , DataSourcePath'Double'Const 0
+                              --                            ]
+                              mk'Axis'Path shifts "phi" [ DataSourcePath'Double'Const 0
                                                           ]
-                              , mk'Axis'Path shifts "omega" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx0/ex/spt_mf-mt_rx/position")) ]
-                                                            , DataSourcePath'Double'Const 0
+                              , mk'Axis'Path shifts "omega" [ DataSourcePath'Double'Const 0
                                                             ]
-                              , mk'Axis'Path shifts "ty" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_tx/position")) ]
-                                                         , DataSourcePath'Double'Const 0
+                              , mk'Axis'Path shifts "ty" [ DataSourcePath'Double'Const 0
                                                          ]
-                              , mk'Axis'Path shifts "tth" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_rx/position")) ]
-                                                          , DataSourcePath'Double'Const 0
+                              , mk'Axis'Path shifts "tth" [ DataSourcePath'Double'Const 0
                                                           ]
-                              , mk'Axis'Path shifts "tx" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_ts/position")) ]
-                                                         , DataSourcePath'Double'Const 0
+                              , mk'Axis'Path shifts "tx" [ DataSourcePath'Double'Const 0
                                                          ]
                               ]
                             ]
@@ -798,7 +809,8 @@ mk'PixelCoordinates'Path c
           pixel0 = binocularsConfig'Common'CentralPixel c
           sdd = binocularsConfig'Common'Sdd c
           detrot = binocularsConfig'Common'Detrot c
-      in [ DataSourcePath'PixelCoordinates detector pixel0 sdd detrot NoNormalisation ]
+      in [ DataSourcePath'PixelCoordinates'Ponis detector "/nfs/ruche/mars-soleil/com-mars/2026/2026_Run2/20252223/published-data/scan_0030_0001.nxs_%02d.poni"  NoNormalisation ]
+      -- in [ DataSourcePath'PixelCoordinates detector pixel0 sdd detrot NoNormalisation ]
 
 -- Timestamp Path
 
@@ -1090,6 +1102,7 @@ processQCustomP = do
                              >-> Pipes.Prelude.map allChunk
                              >-> framesP datapaths
                              >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ _ img _ _ _ _ _) -> filterSumImage mImageSumMax img)
+                             -- >-> Pipes.Prelude.print
                              >-> project det 3 (spaceQCustom det res surfaceOrientation mlimits subprojection uqx uqy uqz mSampleAxis doPolarizationCorrection mdmask)
                              >-> tee (accumulateP c)
                              >-> progress pb

@@ -82,6 +82,13 @@ HKLAPI extern void hkl_binoculars_detector_2d_sixs_calibration(HklBinocularsDete
                                                                int ix0, int iy0, double sdd,
                                                                double detrot, int normalize_flag);
 
+HKLAPI extern void hkl_binoculars_detector_2d_pyfai_calibration(HklBinocularsDetectorEnum n,
+								double *arr,
+								int width, int height,
+								double p1, double p2, double sdd,
+								double rot1, double rot2, double rot3,
+								int normalize_flag);
+
 HKLAPI extern uint32_t *hkl_binoculars_detector_2d_fake_image_uint32(HklBinocularsDetectorEnum n,
                                                                      size_t *n_pixels);
 

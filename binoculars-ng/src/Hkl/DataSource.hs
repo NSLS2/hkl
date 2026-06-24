@@ -66,6 +66,7 @@ import           Data.Aeson                        (FromJSON (..), ToJSON (..))
 import           Data.Int                          (Int32)
 import           Data.Kind                         (Type)
 import           Data.Text                         (Text, unpack)
+import           Data.Text.IO                      (readFile)
 import           Data.Typeable                     (Typeable, typeOf)
 import           Data.Vector.Storable              (Vector, fromList)
 import           Data.Vector.Storable.Mutable      (IOVector, replicate,
@@ -75,6 +76,7 @@ import           Foreign.C.Types                   (CDouble (..))
 #if !MIN_VERSION_base(4, 18, 0)
 import           GHC.Base                          (liftA2)
 #endif
+import           Data.Attoparsec.Text              (parseOnly)
 import           GHC.Float                         (float2Double)
 import           GHC.Generics                      (Generic (..), K1 (..),
                                                     M1 (..), Rep, U1 (..),
@@ -83,7 +85,8 @@ import           Numeric.Units.Dimensional.Prelude (degree, (*~), (/~))
 import           Pipes.Safe                        (MonadSafe, catch, throwM)
 import           Text.Printf                       (printf)
 
-import           Prelude                           hiding (filter, replicate)
+import           Prelude                           hiding (filter, readFile,
+                                                    replicate)
 
 import           Hkl.Binoculars.Config
 import           Hkl.Detector
@@ -92,6 +95,7 @@ import           Hkl.Geometry
 import           Hkl.H5
 import           Hkl.Image
 import           Hkl.Pipes
+import           Hkl.PyFAI.Poni
 import           Hkl.Repa
 import           Hkl.Types
 
@@ -223,8 +227,17 @@ instance Is1DStreamable (DSImage DSAcq) Image where
     extract1DStreamValue (DataSourceAcq'Image'Hdf5'Word32 det ds buf) i       = ImageWord32 <$> getArrayInBuffer buf det ds (Z :. i)
     extract1DStreamValue (DataSourceAcq'Image'Img'Int32 det buf tmpl sn fn) i = ImageInt32 <$> readImgInBuffer buf det (fn tmpl sn i)
 
-instance Is1DStreamable (DSPixelCoordinates  DSAcq) PixelCoordinates where
-    extract1DStreamValue p _ = extract0DStreamValue p
+instance Is1DStreamable (DSPixelCoordinates DSAcq) PixelCoordinates where
+    extract1DStreamValue (DataSourceAcq'PixelCoordinates'Ponis det ponis norm) i =
+        do
+          let poni = printf ponis i
+          c <- liftIO $ readFile poni
+          case parseOnly poniP c of
+            Left _  -> error $ "Cannot parse Poni file " <> poni
+            Right p -> do
+              print poni
+              print p
+              getPixelsCoordinates'FromPoni det p norm
 
 instance Is1DStreamable (DSTimestamp DSAcq) Timestamp where
     extract1DStreamValue (DataSourceAcq'Timestamp'Hdf5 ds) i   = Timestamp <$> extract1DStreamValue ds i
@@ -368,8 +381,10 @@ instance GDSAK1 Geometry
 instance GDSAK1 Int
 instance GDSAK1 (IOVector a)
 instance GDSAK1 Mask
+instance GDSAK1 Normalisation
 instance GDSAK1 PixelCoordinates
 instance GDSAK1 Scannumber
+instance GDSAK1 String
 instance GDSAK1 Text
 instance GDSAK1 (Text -> Scannumber -> Int -> FilePath)
 
@@ -783,17 +798,28 @@ instance DataSource DSMask where
 data family DSPixelCoordinates (k :: DSKind)
 data instance DSPixelCoordinates DSPath
     = DataSourcePath'PixelCoordinates (Detector Hkl DIM2) (Int, Int) Meter Degree Normalisation
+    | DataSourcePath'PixelCoordinates'Ponis (Detector Hkl DIM2) FilePath Normalisation
     deriving (Generic, Show)
     deriving anyclass (FromJSON, ToJSON)
 
 data instance DSPixelCoordinates DSAcq
     = DataSourceAcq'PixelCoordinates'Const PixelCoordinates
+    | DataSourceAcq'PixelCoordinates'Ponis (Detector Hkl DIM2) FilePath Normalisation
     deriving Generic
 
 instance DataSource DSPixelCoordinates where
     withDataSourceP _ path@(DataSourcePath'PixelCoordinates d c sdd detrot norm) g
         = do  m <- liftIO $ getPixelsCoordinates d c (unMeter sdd) (unDegree detrot) norm
               g path (DataSourceAcq'PixelCoordinates'Const m)
+    withDataSourceP _ path@(DataSourcePath'PixelCoordinates'Ponis d ponis norm) g
+        = g path (DataSourceAcq'PixelCoordinates'Ponis d ponis norm)
+    -- withDataSourceP _ path@(DataSourcePath'PixelCoordinates'Poni d poni norm) g
+    --     = do c <- liftIO $ readFile poni
+    --          case parseOnly poniP c of
+    --            Left _ -> error $ "Cannot parse Poni file " <> poni
+    --            Right p -> do
+    --              m <- liftIO $ getPixelsCoordinates'FromPoni d p norm
+    --              g path (DataSourceAcq'PixelCoordinates'Const m)
 
 -- Scannumber
 

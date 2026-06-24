@@ -1,4 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE UnicodeSyntax             #-}
 
@@ -32,6 +33,7 @@ module Hkl.PyFAI.Poni
          -- other
        , WaveLength
        , fromAxisAndAngle
+       , getPixelsCoordinates'FromPoni
        ) where
 
 import           Control.Applicative               (many, optional, (<|>))
@@ -39,19 +41,27 @@ import           Data.Attoparsec.Text              (Parser, decimal, double,
                                                     endOfLine, isEndOfLine,
                                                     many1, string, takeTill,
                                                     (<?>))
-import           Data.List.NonEmpty                (NonEmpty (..), nonEmpty)
+import           Data.List.NonEmpty                (NonEmpty (..), head,
+                                                    nonEmpty)
 import           Data.Text                         (Text)
 import           Data.Vector.Storable              (Vector, fromList)
+import           Foreign.C.Types                   (CDouble (..))
+import           Foreign.ForeignPtr                (castForeignPtr,
+                                                    newForeignPtr)
+import           Foreign.Marshal.Alloc             (finalizerFree)
 import           Numeric.LinearAlgebra             (Matrix, atIndex, fromLists,
                                                     ident, scalar, tr, (<>))
 import           Numeric.Units.Dimensional.Prelude (Angle, Length, degree,
                                                     meter, one, radian, (*~),
                                                     (+), (/~), (/~~))
-import           Prelude                           hiding ((<>))
 
+import           Prelude                           hiding (head, (<>))
+
+import           Hkl.C.Binoculars
 import           Hkl.Detector
 import           Hkl.MyMatrix
 import           Hkl.PyFAI.Detector
+import           Hkl.Repa
 
 type WaveLength  = Length Double
 type PoniPath = FilePath
@@ -267,3 +277,19 @@ poniEntryToList p = [ poniEntry'Rot1 p /~ radian
                     , poniEntry'Poni2 p /~ meter
                     , poniEntry'Distance p /~ meter
                     ]
+
+getPixelsCoordinates'FromPoni :: Detector Hkl DIM2 -> Poni -> Normalisation -> IO PixelCoordinates
+getPixelsCoordinates'FromPoni (Detector2D d _ sh) poni norm = do
+  let p = head poni
+  let sdd = poniEntry'Distance p
+  let p1 = poniEntry'Poni1 p
+  let p2 = poniEntry'Poni2 p
+  let rot1 = poniEntry'Rot1 p
+  let rot2 = poniEntry'Rot2 p
+  let rot3 = poniEntry'Rot3 p
+  let n = toEnum . fromEnum $ d
+  parr <- c'hkl_binoculars_detector_2d_coordinates_get n
+  let Z :. height :. width = sh
+  c'hkl_binoculars_detector_2d_pyfai_calibration n parr (toEnum width) (toEnum height) (CDouble (p1 /~ meter)) (CDouble (p2 /~ meter)) (CDouble (sdd /~ meter)) (CDouble (rot1 /~ radian)) (CDouble (rot2 /~ radian)) (CDouble (rot3 /~ radian)) (toEnum . fromEnum $ norm)
+  arr <- newForeignPtr finalizerFree parr
+  return $ fromForeignPtr (ix3 3 height width) (castForeignPtr arr)
