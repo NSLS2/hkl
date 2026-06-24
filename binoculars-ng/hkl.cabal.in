@@ -132,6 +132,7 @@ library
   exposed-modules: Hkl.PyFAI.PoniExt
   exposed-modules: Hkl.Repa
   exposed-modules: Hkl.Sample
+  exposed-modules: Hkl.Template
   exposed-modules: Hkl.Types
   exposed-modules: Hkl.Utils
 

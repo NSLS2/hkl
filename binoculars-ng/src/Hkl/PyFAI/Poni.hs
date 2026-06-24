@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass            #-}
+{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE OverloadedStrings         #-}
@@ -30,13 +32,16 @@ module Hkl.PyFAI.Poni
        , poniEntryToList
        , poniEntrySet
        , poniEntryMove
+       , PoniKey(..)
          -- other
        , WaveLength
        , fromAxisAndAngle
        , getPixelsCoordinates'FromPoni
+       , getPoniParameter
        ) where
 
 import           Control.Applicative               (many, optional, (<|>))
+import           Data.Aeson                        (FromJSON, ToJSON)
 import           Data.Attoparsec.Text              (Parser, decimal, double,
                                                     endOfLine, isEndOfLine,
                                                     many1, string, takeTill,
@@ -49,6 +54,7 @@ import           Foreign.C.Types                   (CDouble (..))
 import           Foreign.ForeignPtr                (castForeignPtr,
                                                     newForeignPtr)
 import           Foreign.Marshal.Alloc             (finalizerFree)
+import           GHC.Generics                      (Generic)
 import           Numeric.LinearAlgebra             (Matrix, atIndex, fromLists,
                                                     ident, scalar, tr, (<>))
 import           Numeric.Units.Dimensional.Prelude (Angle, Length, degree,
@@ -278,6 +284,14 @@ poniEntryToList p = [ poniEntry'Rot1 p /~ radian
                     , poniEntry'Distance p /~ meter
                     ]
 
+-- PoniKey
+
+data PoniKey
+    = Rot1 | Rot2 | Rot3 | Poni1 | Poni2 | Sdd
+      deriving (Generic, Show, FromJSON, ToJSON)
+
+-- Public Meyhods
+
 getPixelsCoordinates'FromPoni :: Detector Hkl DIM2 -> Poni -> Normalisation -> IO PixelCoordinates
 getPixelsCoordinates'FromPoni (Detector2D d _ sh) poni norm = do
   let p = head poni
@@ -293,3 +307,15 @@ getPixelsCoordinates'FromPoni (Detector2D d _ sh) poni norm = do
   c'hkl_binoculars_detector_2d_pyfai_calibration n parr (toEnum width) (toEnum height) (CDouble (p1 /~ meter)) (CDouble (p2 /~ meter)) (CDouble (sdd /~ meter)) (CDouble (rot1 /~ radian)) (CDouble (rot2 /~ radian)) (CDouble (rot3 /~ radian)) (toEnum . fromEnum $ norm)
   arr <- newForeignPtr finalizerFree parr
   return $ fromForeignPtr (ix3 3 height width) (castForeignPtr arr)
+
+
+getPoniParameter :: Poni -> PoniKey -> Double
+getPoniParameter poni k
+    = let p = head poni
+      in  case k of
+            Rot1  -> poniEntry'Rot1 p /~ radian
+            Rot2  -> poniEntry'Rot2 p /~ radian
+            Rot3  -> poniEntry'Rot3 p /~ radian
+            Poni1 -> poniEntry'Poni1 p /~ meter
+            Poni2 -> poniEntry'Poni2 p /~ meter
+            Sdd   -> poniEntry'Distance p /~ meter

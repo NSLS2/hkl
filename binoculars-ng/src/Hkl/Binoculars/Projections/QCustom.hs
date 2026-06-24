@@ -60,8 +60,7 @@ import           Numeric.Units.Dimensional.Prelude (Angle, degree, radian, (*~),
                                                     (/~))
 import           Path                              (Abs, Dir, Path)
 import           Pipes                             (each, runEffect, (>->))
-import           Pipes.Prelude                     (filter, map, print, tee,
-                                                    toListM)
+import           Pipes.Prelude                     (filter, map, tee, toListM)
 import           Pipes.Safe                        (runSafeT)
 import           Text.Printf                       (printf)
 
@@ -78,6 +77,7 @@ import           Hkl.Geometry
 import           Hkl.H5
 import           Hkl.Image
 import           Hkl.Orphan                        ()
+import           Hkl.PyFAI
 import           Hkl.Repa
 import           Hkl.Types
 import           Hkl.Utils
@@ -98,7 +98,7 @@ data DataFrameQCustom
       Flat -- flat
       Timestamp -- timestamp in double
       Timescan0 -- timescan0 in double
-      Scannumber -- scannumber in int
+      ScanNumber -- scannumber in int
     deriving Show
 
 data DSDataFrameQCustom (k :: DSKind)
@@ -111,7 +111,7 @@ data DSDataFrameQCustom (k :: DSKind)
       (DSWrap_ DSFlat k)
       (DSWrap_ DSTimestamp k)
       (DSWrap_ DSTimescan0 k)
-      (DSWrap_ DSScannumber k)
+      (DSWrap_ DSScanNumber k)
     deriving Generic
 
 instance ChunkP DSDataFrameQCustom
@@ -129,7 +129,7 @@ instance Is1DStreamable (DSDataFrameQCustom DSAcq) DataFrameQCustom where
       <*> extract1DStreamValue geom i
       <*> extract1DStreamValue pixels i
       <*> extract1DStreamValue img i
-      <*> extract0DStreamValue msk
+      <*> extract1DStreamValue msk i
       <*> extract0DStreamValue flat
       <*> extract1DStreamValue idx i
       <*> extract0DStreamValue t0
@@ -142,7 +142,7 @@ instance Is2DStreamable (DSDataFrameQCustom DSAcq) DataFrameQCustom where
       <*> extract2DStreamValue geom i
       <*> extract2DStreamValue pixels i
       <*> extract2DStreamValue img i
-      <*> extract0DStreamValue msk
+      <*> extract2DStreamValue msk i
       <*> extract0DStreamValue flat
       <*> extract2DStreamValue idx i
       <*> extract0DStreamValue t0
@@ -361,9 +361,10 @@ mk'Attenuation'Path inputtype mAttenuationCoefficient mAttenuationMax mAttenuati
                       CristalK6C        -> no
                       Custom            -> no
                       DiffabsCirpad     -> no
-                      MarsCx3Sbs        -> no
                       MarsFlyscan       -> no
                       MarsSbs           -> no
+                      MarsSbsCx3        -> no
+                      MarsSbsPyFAI      -> no
                       SixsFlyMedH       -> sixs'Fly
                       SixsFlyMedHGisaxs -> sixs'Fly
                       SixsFlyMedV       -> sixs'Fly
@@ -409,9 +410,10 @@ mk'Wavelength'Path inputtype mw = Prelude.map f wavelength
                         CristalK6C        -> cristal
                         Custom            -> undefined
                         DiffabsCirpad     -> diffabs
-                        MarsCx3Sbs        -> mars
                         MarsFlyscan       -> mars
                         MarsSbs           -> mars
+                        MarsSbsCx3        -> mars
+                        MarsSbsPyFAI      -> mars
                         SixsFlyMedH       -> sixs
                         SixsFlyMedHGisaxs -> sixs
                         SixsFlyMedV       -> sixs
@@ -437,6 +439,8 @@ mk'Axes'Path inputtype shifts cfg = axes
                                                                 DataSourcePath'Double'Hdf5 ds -> DataSourcePath'Double'Hdf5WithShift ds s
                                                                 DataSourcePath'Double'Hdf5WithShift ds _ -> DataSourcePath'Double'Hdf5WithShift ds s
                                                                 DataSourcePath'Double'Const _ -> p
+                                                                DataSourcePath'Double'Poni t k ->  DataSourcePath'Double'Poni'WithShift t k s
+                                                                DataSourcePath'Double'Poni'WithShift t k _ ->  DataSourcePath'Double'Poni'WithShift t k s
                                                         ) ps
                                         else
                                             Prelude.map (\p -> case p of
@@ -444,6 +448,8 @@ mk'Axes'Path inputtype shifts cfg = axes
                                                                 DataSourcePath'Double'Hdf5 _ -> p
                                                                 DataSourcePath'Double'Hdf5WithShift ds _ -> DataSourcePath'Double'Hdf5 ds
                                                                 DataSourcePath'Double'Const _ -> p
+                                                                DataSourcePath'Double'Poni _ _ -> p
+                                                                DataSourcePath'Double'Poni'WithShift t k _ ->  DataSourcePath'Double'Poni t k
                                                         ) ps
       -- geometry
       sixs'eix
@@ -608,34 +614,6 @@ mk'Axes'Path inputtype shifts cfg = axes
                                  , mk'Axis'Path shifts "gamma" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d13-1-cx1/ex/dif.1-cirpad-gam/position")) ] ]
                                  ]
                                ]
-               MarsCx3Sbs -> [ DataSourcePath'List
-                              [ -- mk'Axis'Path shifts "phi" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx0/ex/spt_mf-mt_rz/position")) ]
-                              --                             , DataSourcePath'Double'Const 0
-                              --                             ]
-                              -- , mk'Axis'Path shifts "omega" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx0/ex/spt_mf-mt_rx/position")) ]
-                              --                               , DataSourcePath'Double'Const 0
-                              --                               ]
-                              -- , mk'Axis'Path shifts "ty" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_tx/position")) ]
-                              --                            , DataSourcePath'Double'Const 0
-                              --                            ]
-                              -- , mk'Axis'Path shifts "tth" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_rx/position")) ]
-                              --                             , DataSourcePath'Double'Const 0
-                              --                             ]
-                              -- , mk'Axis'Path shifts "tx" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_ts/position")) ]
-                              --                            , DataSourcePath'Double'Const 0
-                              --                            ]
-                              mk'Axis'Path shifts "phi" [ DataSourcePath'Double'Const 0
-                                                          ]
-                              , mk'Axis'Path shifts "omega" [ DataSourcePath'Double'Const 0
-                                                            ]
-                              , mk'Axis'Path shifts "ty" [ DataSourcePath'Double'Const 0
-                                                         ]
-                              , mk'Axis'Path shifts "tth" [ DataSourcePath'Double'Const 0
-                                                          ]
-                              , mk'Axis'Path shifts "tx" [ DataSourcePath'Double'Const 0
-                                                         ]
-                              ]
-                            ]
                MarsFlyscan -> [ DataSourcePath'List
                                [ mk'Axis'Path shifts "omega" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ datasetp "scan_data/omega") ] ]
                                , mk'Axis'Path shifts "chi" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ datasetp "scan_data/chi") ] ]
@@ -667,6 +645,34 @@ mk'Axes'Path inputtype shifts cfg = axes
                                                        ]
                            ]
                          ]
+               MarsSbsCx3 -> [ DataSourcePath'List
+                              [ mk'Axis'Path shifts "phi" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx0/ex/spt_mf-mt_rz/position")) ]
+                                                          , DataSourcePath'Double'Const 0
+                                                          ]
+                              , mk'Axis'Path shifts "omega" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx0/ex/spt_mf-mt_rx/position")) ]
+                                                            , DataSourcePath'Double'Const 0
+                                                            ]
+                              , mk'Axis'Path shifts "ty" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_tx/position")) ]
+                                                         , DataSourcePath'Double'Const 0
+                                                         ]
+                              , mk'Axis'Path shifts "tth" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_rx/position")) ]
+                                                          , DataSourcePath'Double'Const 0
+                                                          ]
+                              , mk'Axis'Path shifts "tx" [ DataSourcePath'Double'Hdf5 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d03-1-cx3/dt/spt_dtc_mt_ts/position")) ]
+                                                         , DataSourcePath'Double'Const 0
+                                                         ]
+                              ]
+                            ]
+               MarsSbsPyFAI -> let tmpl = Template "/nfs/ruche/mars-soleil/com-mars/2026/2026_Run2/20252223/published-data/scan_0030_0001.nxs_{index0:02d}.poni"
+                              in [ DataSourcePath'List
+                                   [ mk'Axis'Path shifts "rot1" [ DataSourcePath'Double'Poni tmpl Rot1]
+                                   , mk'Axis'Path shifts "rot2" [ DataSourcePath'Double'Poni tmpl Rot2]
+                                   , mk'Axis'Path shifts "rot3" [ DataSourcePath'Double'Poni tmpl Rot3]
+                                   , mk'Axis'Path shifts "poni1" [ DataSourcePath'Double'Poni tmpl Poni1]
+                                   , mk'Axis'Path shifts "poni2" [ DataSourcePath'Double'Poni tmpl Poni2]
+                                   , mk'Axis'Path shifts "sdd" [ DataSourcePath'Double'Poni tmpl Sdd]
+                                   ]
+                                 ]
                SixsFlyMedH -> sixs'medh
                SixsFlyMedHGisaxs -> sixs'medh'gisaxs
                SixsFlyMedV -> sixs'medv
@@ -688,7 +694,7 @@ mk'Geometry'Path inputtype mWavelength geom shifts cfg = [ DataSourcePath'Geomet
 
 -- Image Path
 
-mk'Image'Path :: InputType -> Maybe (DSWrap_ DSImage DSPath) -> Detector Hkl DIM2 -> Scannumber -> DSWrap_ DSImage DSPath
+mk'Image'Path :: InputType -> Maybe (DSWrap_ DSImage DSPath) -> Detector Hkl DIM2 -> ScanNumber -> DSWrap_ DSImage DSPath
 mk'Image'Path inputtype mImage detector@(Detector2D d _ _) sn = fromMaybe image mImage
     where
       sixs'Fly = [case d of
@@ -759,12 +765,6 @@ mk'Image'Path inputtype mImage detector@(Detector2D d _ _) sn = fromMaybe image 
                                   detector
                                   [ DataSourcePath'Dataset (hdf5p $ grouppat 0 $ groupp "scan_data" $ datasetpattr ("long_name", "d13-1-cx1/dt/cirpad.1/image")) ]
                                 ]
-                MarsCx3Sbs -> [ DataSourcePath'Image'Hdf5
-                               detector
-                               [ DataSourcePath'Dataset (hdf5p $ datasetpattr ("long_name", "d03-1-c00/dt/pilatus.1/image"))
-                               , DataSourcePath'Dataset (hdf5p $ datasetpattr ("interpretation", "image"))
-                               ]
-                             ]
                 MarsFlyscan -> [ DataSourcePath'Image'Hdf5
                                 detector
                                 [ DataSourcePath'Dataset (hdf5p $ grouppat 0 (datasetp "scan_data/merlin_image"))
@@ -777,6 +777,18 @@ mk'Image'Path inputtype mImage detector@(Detector2D d _ _) sn = fromMaybe image 
                             , DataSourcePath'Dataset (hdf5p $ datasetpattr ("interpretation", "image"))
                             ]
                           ]
+                MarsSbsCx3 -> [ DataSourcePath'Image'Hdf5
+                               detector
+                               [ DataSourcePath'Dataset (hdf5p $ datasetpattr ("long_name", "d03-1-c00/dt/pilatus.1/image"))
+                               , DataSourcePath'Dataset (hdf5p $ datasetpattr ("interpretation", "image"))
+                               ]
+                             ]
+                MarsSbsPyFAI -> [ DataSourcePath'Image'Hdf5
+                                 detector
+                                 [ DataSourcePath'Dataset (hdf5p $ datasetpattr ("long_name", "d03-1-c00/dt/pilatus.1/image"))
+                                 , DataSourcePath'Dataset (hdf5p $ datasetpattr ("interpretation", "image"))
+                                 ]
+                               ]
                 SixsFlyMedH -> sixs'Fly
                 SixsFlyMedHGisaxs -> sixs'Fly
                 SixsFlyMedV -> sixs'Fly
@@ -809,8 +821,7 @@ mk'PixelCoordinates'Path c
           pixel0 = binocularsConfig'Common'CentralPixel c
           sdd = binocularsConfig'Common'Sdd c
           detrot = binocularsConfig'Common'Detrot c
-      in [ DataSourcePath'PixelCoordinates'Ponis detector "/nfs/ruche/mars-soleil/com-mars/2026/2026_Run2/20252223/published-data/scan_0030_0001.nxs_%02d.poni"  NoNormalisation ]
-      -- in [ DataSourcePath'PixelCoordinates detector pixel0 sdd detrot NoNormalisation ]
+      in [ DataSourcePath'PixelCoordinates detector pixel0 sdd detrot NoNormalisation ]
 
 -- Timestamp Path
 
@@ -855,9 +866,10 @@ mk'Timestamp'Path inputtype msub = Prelude.map f timestamp
                CristalK6C        -> sbs
                Custom            -> undefined
                DiffabsCirpad     -> sbs
-               MarsCx3Sbs        -> sbs
                MarsFlyscan       -> fly
                MarsSbs           -> sbs
+               MarsSbsCx3        -> sbs
+               MarsSbsPyFAI      -> sbs
                SixsFlyMedH       -> fly
                SixsFlyMedHGisaxs -> fly
                SixsFlyMedV       -> fly
@@ -882,9 +894,10 @@ mk'Timescan0'Path inputtype msub =
                       CristalK6C        -> timescan0'Sbs
                       Custom            -> undefined
                       DiffabsCirpad     -> timescan0'Sbs
-                      MarsCx3Sbs        -> timescan0'Sbs
                       MarsFlyscan       -> timescan0'Sbs
                       MarsSbs           -> timescan0'Sbs
+                      MarsSbsCx3        -> timescan0'Sbs
+                      MarsSbsPyFAI      -> timescan0'Sbs
                       SixsFlyMedH       -> timescan0'Fly
                       SixsFlyMedHGisaxs -> timescan0'Fly
                       SixsFlyMedV       -> timescan0'Fly
@@ -944,7 +957,7 @@ guess'DataSource'DataFrameQCustom common msub cfg =
         geometry = binocularsConfig'Common'Geometry common
         shifts = binocularsConfig'Common'GeometryShifts common
         mWavelength = binocularsConfig'Common'Wavelength common
-        sn0 = getInitialScannumber $ binocularsConfig'Common'InputRange common
+        sn0 = getInitialScanNumber $ binocularsConfig'Common'InputRange common
     in [ DataSource'DataFrameQCustom
          ( mk'Attenuation'Path inputtype mAttenuationCoefficient mAttenuationMax mAttenuationShift )
          ( mk'Geometry'Path inputtype mWavelength geometry shifts cfg )
@@ -954,7 +967,7 @@ guess'DataSource'DataFrameQCustom common msub cfg =
          ( mk'Flat'Path common )
          ( mk'Timestamp'Path inputtype msub )
          ( mk'Timescan0'Path inputtype msub )
-         [ DataSourcePath'Scannumber ]
+         [ DataSourcePath'ScanNumber ]
        ]
 
 getDataPath :: Config 'QCustomProjection -> DSWrap_ DSDataFrameQCustom DSPath
@@ -998,7 +1011,7 @@ spaceQCustom det rs surf mlimits subprojection uqx uqy uqz mSampleAxis polarisat
     let c'nlimits = toEnum nlimits
     let c'timestamp = CDouble . unTimestamp $ index
     let c'timescan0 = CDouble . unTimescan0 $ timescan0
-    let c'scannumber = toEnum . fromEnum . unScannumber $ scannumber
+    let c'scannumber = toEnum . fromEnum . unScanNumber $ scannumber
     let c'subprojection = toEnum . fromEnum $ subprojection
     let c'uqx = CDouble (uqx /~ radian)
     let c'uqy = CDouble (uqy /~ radian)
@@ -1102,7 +1115,7 @@ processQCustomP = do
                              >-> Pipes.Prelude.map allChunk
                              >-> framesP datapaths
                              >-> Pipes.Prelude.filter (\(DataFrameQCustom _ _ _ img _ _ _ _ _) -> filterSumImage mImageSumMax img)
-                             -- >-> Pipes.Prelude.print
+                             -- >-> tee (Pipes.Prelude.print)
                              >-> project det 3 (spaceQCustom det res surfaceOrientation mlimits subprojection uqx uqy uqz mSampleAxis doPolarizationCorrection mdmask)
                              >-> tee (accumulateP c)
                              >-> progress pb

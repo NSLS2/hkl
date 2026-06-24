@@ -114,10 +114,14 @@ newLattice (Triclinic la lb lc (Degree aalpha) (Degree abeta) (Degree agamma)) =
 
 data Unit = Unit'NoUnit
           | Unit'Angle'Degree
+          | Unit'Angle'Radian
+          | Unit'Length'Meter
           | Unit'Length'MilliMeter
   deriving (Bounded, Eq, Enum, Generic, FromJSON, Show, ToJSON)
 
 unitToHklUnit :: Unit -> Ptr C'HklUnit
 unitToHklUnit Unit'NoUnit            = p'hkl_unit_angle_rad
 unitToHklUnit Unit'Angle'Degree      = p'hkl_unit_angle_deg
+unitToHklUnit Unit'Angle'Radian      = p'hkl_unit_angle_rad
+unitToHklUnit Unit'Length'Meter      = p'hkl_unit_length_meter
 unitToHklUnit Unit'Length'MilliMeter = p'hkl_unit_length_mm

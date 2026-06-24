@@ -20,6 +20,7 @@ data HklDetectorException
   | MaskInternalError
   | NoDefaultFlat
   | FlatShapeNotcompatible Text
+  | MaskTemplateError Text
   deriving (Show, Typeable)
 instance Exception HklDetectorException
 
@@ -76,3 +77,16 @@ instance Exception HklH5Exception where
     case fromException se of
       Just (HklDataSourceException'HklH5Exception c) -> Just c
       _                                              -> Nothing
+
+
+data HklPyFAIException
+    = CanNotParsePoni String
+      deriving  (Show, Typeable)
+
+instance Exception HklPyFAIException
+
+data HklTemplateException
+    = CanNotApplyTemplate Template String
+      deriving  (Show, Typeable)
+
+instance Exception HklTemplateException

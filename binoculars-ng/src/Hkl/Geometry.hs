@@ -16,6 +16,7 @@ module Hkl.Geometry
        , geometry'Axes
        , marsCx3
        , mk'Geometry
+       , pyfai
        , sixsMedHGisaxs
        , sixsMedVGisaxs
        , sixsUhvGisaxs
@@ -149,6 +150,25 @@ fixed
     (Node (Axis "mu" (Rotation 0 0 1) Unit'Angle'Degree) [ Node (Axis "omega" (Rotation 0 (-1) 0) Unit'Angle'Degree) [] ])
     Nothing
 
+pyfai :: Geometry
+pyfai
+    = Geometry'Custom
+      ( Node noAxis
+        [ Node noAxis []
+        , Node (Axis "rot1" (Rotation 0 0 (-1)) Unit'Angle'Radian)
+          [ Node (Axis "rot2" (Rotation 0 (-1) 0) Unit'Angle'Radian)
+            [ Node (Axis "rot3" (Rotation 0 (-1) 0) Unit'Angle'Radian)
+              [Node (Axis "poni1" (Translation 0 0 1) Unit'Length'Meter)
+               [ Node (Axis "poni2" (Translation 0 1 0) Unit'Length'Meter)
+                 [ Node (Axis "sdd" (Translation 1 0 0) Unit'Length'Meter) []
+                 ]
+               ]
+              ]
+            ]
+          ]
+        ]
+      )
+      Nothing
 
 sixsMedHGisaxs :: Geometry
 sixsMedHGisaxs

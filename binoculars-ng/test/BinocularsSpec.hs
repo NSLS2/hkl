@@ -35,6 +35,7 @@ import           Hkl.Detector
 import           Hkl.Geometry
 import           Hkl.Lattice
 import           Hkl.Repa
+import           Hkl.Template
 
 import           Paths_hkl
 
@@ -120,9 +121,9 @@ spec = do
               t ~> fieldParser `shouldParse` e
 
     it'maskLocation "mask.npy" (MaskLocation "mask.npy")
-    it'maskLocation "mask_{scannumber:03d}.npy" (MaskLocation'Tmpl "mask_{scannumber:03d}.npy")
-    it'maskLocation "mask_{scannumber:03d}.npy | mask.npy" (MaskLocation'Or (MaskLocation'Tmpl "mask_{scannumber:03d}.npy") (MaskLocation "mask.npy"))
-    it'maskLocation "mask_{scannumber:03d}.npy | mask.npy|default  " (MaskLocation'Or (MaskLocation'Tmpl "mask_{scannumber:03d}.npy") (MaskLocation'Or (MaskLocation "mask.npy") (MaskLocation "default")))
+    it'maskLocation "mask_{scannumber:03d}.npy" (MaskLocation'Tmpl (Template "mask_{scannumber:03d}.npy"))
+    it'maskLocation "mask_{scannumber:03d}.npy | mask.npy" (MaskLocation'Or (MaskLocation'Tmpl (Template "mask_{scannumber:03d}.npy")) (MaskLocation "mask.npy"))
+    it'maskLocation "mask_{scannumber:03d}.npy | mask.npy|default  " (MaskLocation'Or (MaskLocation'Tmpl (Template "mask_{scannumber:03d}.npy")) (MaskLocation'Or (MaskLocation "mask.npy") (MaskLocation "default")))
 
   --------------
   -- Geometry --
@@ -175,7 +176,7 @@ spec = do
        "Line 5, in section \"geometry\": rotation maformed expect: 'rotation <x> <y> <z>': Failed reading: takeWhile1"
 
     it'geometry'left "[geometry]\ngeometry_sample=omega chi phi\ngeometry_detector=tth\naxis_omega=rotation 0 -1 0 degree\naxis_chi=rotation 1 0 0 toto\naxis_phi=rotation 0 -1 0 degree\naxis_tth=rotation 0 -1 0 degree\n"
-       "Line 5, in section \"geometry\": Failed reading: unknown unit 'toto' only supported are 'ua' 'degree' 'millimeter'"
+       "Line 5, in section \"geometry\": Failed reading: unknown unit 'toto' only supported are 'ua' 'degree' 'radian' 'meter' 'millimeter'"
 
   -------------
   -- RLimits --
@@ -209,6 +210,24 @@ spec = do
          it'transformation'error "rotation 1 0"
 
                                    -- (Left "Line 5, in section \"geometry\": rotation maformed expect: rotation <x> <y> <z>: Failed reading: takeWhile1")
+
+  -------------------------
+  -- TemplateApplication --
+  -------------------------
+
+  describe "TemplateApplication" $ do
+
+    let it'template t e =
+            it ("apply a template: " <> unpack t) $ do
+               applyTemplate 10 (ix2 3 1) (Template t) `shouldParse` e
+
+    it'template "mask.npy" "mask.npy"
+    it'template "mask_{scannumber:03d}.npy" "mask_010.npy"
+    it'template "mask_{scannumber:03d}.npy | mask.npy" "mask_010.npy | mask.npy"
+    it'template "mask_{scannumber:03d}.npy | mask.npy|default"  "mask_010.npy | mask.npy|default"
+    it'template "mask_{scannumber:03d}_{index0:02d}.npy" "mask_010_01.npy"
+    it'template "mask_{scannumber:03d}_{index1:04d}.npy | mask.npy" "mask_010_0003.npy | mask.npy"
+    it'template "mask_{scannumber:03d}_{index1:02d}_{index0:d}.npy | mask.npy|default"  "mask_010_03_1.npy | mask.npy|default"
 
   ----------
   -- Unit --

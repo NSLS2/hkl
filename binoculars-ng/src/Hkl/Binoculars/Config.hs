@@ -67,12 +67,13 @@ module Hkl.Binoculars.Config
     , files
     , getCapabilities
     , getFlat
-    , getInitialScannumber
+    , getInitialScanNumber
     , getMask
     , getPreConfig
     , iniParser'GeometryValues
     , iniParser'GeometryShifts
     , iniParser'Maybe'Geometry
+    , maskPerIndex
     , mergeIni
     , parse'
     , parseFDef
@@ -158,7 +159,9 @@ import           Hkl.Exception
 import           Hkl.Geometry
 import           Hkl.Lattice
 import           Hkl.Repa
+import           Hkl.Template
 import           Hkl.Types
+
 import           Paths_hkl
 
 -- TODO
@@ -397,10 +400,10 @@ instance FieldParsable ConfigRange where
 instance HasFieldValue ConfigRange where
   fieldvalue = parsable
 
-getInitialScannumber :: ConfigRange -> Scannumber
-getInitialScannumber (ConfigRange ne) = let (InputRange int) = Data.List.NonEmpty.head ne
+getInitialScanNumber :: ConfigRange -> ScanNumber
+getInitialScanNumber (ConfigRange ne) = let (InputRange int) = Data.List.NonEmpty.head ne
                                             sn0 = inf int
-                                        in Scannumber sn0
+                                        in ScanNumber sn0
 
 -- DestinationTmpl
 
@@ -465,11 +468,11 @@ instance ToIni Geometry where
               as = custom'toList t
               sample :: [(Text, Text)]
               sample
-                  | Data.List.length as > 0 = [ ("geometry_sample", asText $ as !! 0 ) ]
+                  | Data.List.length as > 0 = [ ("geometry_detector", asText $ as !! 0 ) ]
                   | otherwise = []
               detector :: [(Text, Text)]
               detector
-                  | Data.List.length as > 1 = [ ("geometry_sample", asText $ as !! 1 ) ]
+                  | Data.List.length as > 1 = [ ("geometry_detector", asText $ as !! 1 ) ]
                   | otherwise = []
               asText :: [Axis] -> Text
               asText = Data.Text.unwords . Prelude.map (pack . axis'name)
@@ -686,9 +689,10 @@ instance HasFieldValue InputTypeDeprecated where
 data InputType = CristalK6C
                | Custom
                | DiffabsCirpad
-               | MarsCx3Sbs
                | MarsFlyscan
                | MarsSbs
+               | MarsSbsCx3
+               | MarsSbsPyFAI
                | SixsFlyMedH
                | SixsFlyMedHGisaxs
                | SixsFlyMedV
@@ -710,9 +714,10 @@ instance FieldEmitter InputType where
   fieldEmitter CristalK6C        = "cristal:k6c"
   fieldEmitter Custom            = "custom"
   fieldEmitter DiffabsCirpad     = "diffabs:cirpad"
-  fieldEmitter MarsCx3Sbs        = "mars:cx3:sbs"
   fieldEmitter MarsFlyscan       = "mars:flyscan"
   fieldEmitter MarsSbs           = "mars:sbs"
+  fieldEmitter MarsSbsCx3        = "mars::sbscx3"
+  fieldEmitter MarsSbsPyFAI      = "mars::sbspyfai"
   fieldEmitter SixsFlyMedH       = "sixs:flymedh"
   fieldEmitter SixsFlyMedHGisaxs = "sixs:flymedhgisaxs"
   fieldEmitter SixsFlyMedV       = "sixs:flymedv"
@@ -759,25 +764,28 @@ instance Arbitrary Limits where
 -- MaskLocation
 
 data MaskLocation = MaskLocation Text
-                  | MaskLocation'Tmpl Text
+                  | MaskLocation'Tmpl Template
                   | MaskLocation'Or MaskLocation MaskLocation
     deriving (Eq, Generic, Show)
     deriving anyclass (FromJSON, ToJSON)
 
 instance FieldEmitter MaskLocation where
   fieldEmitter (MaskLocation t)      = t
-  fieldEmitter (MaskLocation'Tmpl t) = t
+  fieldEmitter (MaskLocation'Tmpl t) = unTemplate t
   fieldEmitter (MaskLocation'Or l r) = fieldEmitter l <> " | " <> fieldEmitter r
 
 instance FieldParsable MaskLocation where
-  fieldParser = do
-    let loc :: Text -> MaskLocation
-        loc t = if "{scannumber:" `Data.Text.isInfixOf` t
-                then MaskLocation'Tmpl (strip t)
-                else MaskLocation (strip t)
+    fieldParser = do
+      -- TODO simplify this logic
+      let loc :: Text -> MaskLocation
+          loc t = if "{scannumber:" `Data.Text.isInfixOf` t
+                  then MaskLocation'Tmpl (Template (strip t))
+                  else if "{index" `Data.Text.isInfixOf` t
+                       then MaskLocation'Tmpl (Template (strip t))
+                       else MaskLocation (strip t)
 
-    t <- takeTill (== '|')
-    if t == ""
+      t <- takeTill (== '|')
+      if t == ""
       then fail "MaskLocation is Empty"
       else do mc <- peekChar
               case mc of
@@ -1130,6 +1138,8 @@ instance FieldParsable Transformation where
 instance FieldEmitter Unit where
   fieldEmitter Unit'NoUnit            = "ua"
   fieldEmitter Unit'Angle'Degree      = "degree"
+  fieldEmitter Unit'Angle'Radian      = "radian"
+  fieldEmitter Unit'Length'Meter      = "meter"
   fieldEmitter Unit'Length'MilliMeter = "millimeter"
 
 instance FieldParsable Unit where
@@ -1204,7 +1214,7 @@ matchInputRange' :: String -> Path Abs File -> [Int] -> [Maybe ScanFilePath]
 matchInputRange' tmpl f is =
   case find (\i -> printf tmpl i `Data.List.isInfixOf` toFilePath f) is of
     Nothing -> []
-    Just i  -> [Just (ScanFilePath f (Scannumber i))]
+    Just i  -> [Just (ScanFilePath f (ScanNumber i))]
 
 matchInputRange :: String -> Path Abs File ->  InputRange -> [Maybe ScanFilePath]
 matchInputRange tmpl f (InputRange ir)
@@ -1236,8 +1246,8 @@ files md mr mt =
        then throwM (NoDataFilesUnderTheGivenDirectory dir)
        else return $ catMaybes fs
 
-getFlat :: (MonadCatch m, MonadIO m) => FlatLocation -> Detector Hkl DIM2 -> Scannumber -> m Flat
-getFlat loc d (Scannumber i)
+getFlat :: (MonadCatch m, MonadIO m) => FlatLocation -> Detector Hkl DIM2 -> ScanNumber -> m Flat
+getFlat loc d (ScanNumber i)
   = case loc of
       FlatLocation "default" -> getDetectorDefaultFlat d
       FlatLocation fname     -> getDetectorFlat d fname
@@ -1247,22 +1257,28 @@ getFlat loc d (Scannumber i)
         let fname = pack $ printf (unpack tmpl2) i
         getDetectorFlat d fname
 
-getMask :: (MonadCatch m, MonadIO m) => MaskLocation -> Detector Hkl DIM2 -> Scannumber -> m Mask
-getMask loc d sn@(Scannumber i)
+
+maskPerIndex :: MaskLocation -> Bool
+maskPerIndex (MaskLocation _)         = False
+maskPerIndex (MaskLocation'Tmpl (Template tmpl)) = "{index" `Data.Text.isInfixOf` tmpl
+maskPerIndex (MaskLocation'Or l r)    = maskPerIndex l || maskPerIndex r
+
+getMask :: (MonadCatch m, MonadIO m, Shape sh) => MaskLocation -> Detector Hkl DIM2 -> ScanNumber -> sh -> m Mask
+getMask loc d sn@(ScanNumber i) index
   = case loc of
       MaskLocation "default" -> getDetectorDefaultMask d
       MaskLocation fname     -> getDetectorMask d fname
       MaskLocation'Tmpl tmpl -> do
-        let tmpl1 = replace "{scannumber:" "%" tmpl
-        let tmpl2 = replace "}" "" tmpl1
-        let fname = pack $ printf (unpack tmpl2) i
-        getDetectorMask d fname
+               let efname = applyTemplate i index tmpl
+               case efname of
+                 Left err    -> throwM $ MaskTemplateError (pack err)
+                 Right fname -> getDetectorMask d fname
       MaskLocation'Or l r -> do
-        el :: Either HklDetectorException Mask <- try $ getMask l d sn
+        el :: Either HklDetectorException Mask <- try $ getMask l d sn index
         case el of
-          Left _ -> getMask r d sn
+          Left _ -> getMask r d sn index
           Right ml -> do
-            er :: Either HklDetectorException Mask <- try $ getMask r d sn
+            er :: Either HklDetectorException Mask <- try $ getMask r d sn index
             case er of
               Left _   -> pure ml
               Right mr -> maskOr d ml mr

@@ -11,8 +11,9 @@ module Hkl.Types ( AbsDirPath
                  , SampleName
                  , ScanFile(..)
                  , ScanFilePath(..)
-                 , Scannumber(..)
+                 , ScanNumber(..)
                  , Section
+                 , Template(..)
                  , Timestamp(..)
                  , Timescan0(..)
                  , Trajectory
@@ -35,7 +36,9 @@ type SampleName = String
 
 --  Beamline
 
-data Beamline = Diffabs | Sixs
+data Beamline
+    = Diffabs
+    | Sixs
 
 instance Show Beamline where
   show Diffabs = "diffabs"
@@ -87,16 +90,16 @@ type Key = Text
 
 -- ScanFile
 
-data ScanFile l = ScanFile l Scannumber
+data ScanFile l = ScanFile l ScanNumber
 
 -- ScanFilePath
 
-data ScanFilePath = ScanFilePath (Path Abs File) Scannumber
+data ScanFilePath = ScanFilePath (Path Abs File) ScanNumber
   deriving Show
 
 -- Scannumber
 
-newtype Scannumber = Scannumber { unScannumber :: Int }
+newtype ScanNumber = ScanNumber { unScanNumber :: Int }
   deriving (Eq, Show, FromJSON, ToJSON)
 
 -- Section
@@ -105,6 +108,11 @@ newtype Scannumber = Scannumber { unScannumber :: Int }
 --   deriving (IsString, Show, FromJSON, ToJSON)
 
 type Section = Text
+
+-- Template
+
+newtype Template = Template { unTemplate :: Text }
+    deriving (Eq, Show, FromJSON, ToJSON)
 
 -- Timestamp
 

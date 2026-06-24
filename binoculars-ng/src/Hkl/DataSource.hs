@@ -45,7 +45,7 @@ module Hkl.DataSource
   , DSPixelCoordinates(..)
   , DSTimestamp(..)
   , DSTimescan0(..)
-  , DSScannumber(..)
+  , DSScanNumber(..)
   , HklBinocularsException(..)
   , Is0DStreamable(..)
   , Is1DStreamable(..)
@@ -97,8 +97,8 @@ import           Hkl.Image
 import           Hkl.Pipes
 import           Hkl.PyFAI.Poni
 import           Hkl.Repa
+import           Hkl.Template
 import           Hkl.Types
-
 
 --------------------
 -- Is0DStreamable --
@@ -146,19 +146,23 @@ instance Is0DStreamable (DSDouble DSAcq) Double where
     extract0DStreamValue (DataSourceAcq'Double'Hdf5 d)  = extract0DStreamValue d
     extract0DStreamValue (DataSourceAcq'Double'Hdf5WithShift d _) = extract0DStreamValue d
     extract0DStreamValue (DataSourceAcq'Double'Const a) = pure a
+    extract0DStreamValue (DataSourceAcq'Double'Poni{}) = undefined -- show never happend
+    extract0DStreamValue (DataSourceAcq'Double'Poni'WithShift{}) = undefined -- show never happend
 
 instance Is0DStreamable (DSFlat DSAcq) Flat where
     extract0DStreamValue (DataSourceAcq'Flat m)    = pure m
 
 instance Is0DStreamable (DSMask DSAcq) (Maybe Mask) where
-    extract0DStreamValue DataSourceAcq'Mask'NoMask = pure Nothing
-    extract0DStreamValue (DataSourceAcq'Mask m)    = pure $ Just m
+    extract0DStreamValue DataSourceAcq'Mask'NoMask           = pure Nothing
+    extract0DStreamValue (DataSourceAcq'Mask m)              = pure $ Just m
+    extract0DStreamValue (DataSourceAcq'Mask'Tmpl l d sn)    = Just <$> getMask l d sn Z
 
-instance Is0DStreamable (DSPixelCoordinates  DSAcq) PixelCoordinates where
+instance Is0DStreamable (DSPixelCoordinates DSAcq) PixelCoordinates where
     extract0DStreamValue (DataSourceAcq'PixelCoordinates'Const p) = pure p
+    extract0DStreamValue (DataSourceAcq'PixelCoordinates'Ponis{}) = undefined -- should never happend
 
-instance Is0DStreamable (DSScannumber DSAcq) Scannumber where
-    extract0DStreamValue (DataSourceAcq'Scannumber'Const sn) = pure sn
+instance Is0DStreamable (DSScanNumber DSAcq) ScanNumber where
+    extract0DStreamValue (DataSourceAcq'ScanNumber'Const sn) = pure sn
 
 instance Is0DStreamable (DSTimescan0 DSAcq) Timescan0 where
     extract0DStreamValue (DataSourceAcq'Timescan0'Hdf5 ds) = Timescan0 <$> extract0DStreamValue ds
@@ -169,7 +173,7 @@ instance Is0DStreamable (DSTimescan0 DSAcq) Timescan0 where
 --------------------
 
 class Is1DStreamable a e where
-  extract1DStreamValue :: a -> Int -> IO e
+  extract1DStreamValue :: a -> DIM1 -> IO e
 
 -- Is1DStreamable (instances)
 
@@ -177,18 +181,18 @@ badAttenuation :: Float
 badAttenuation = -100
 
 instance Is1DStreamable (DSDataset DIM2 Double DSAcq) CDouble where
-    extract1DStreamValue (DataSourceAcq'Dataset ds) = getPosition ds
+    extract1DStreamValue (DataSourceAcq'Dataset ds) (Z :. i) = getPosition ds i
 
 instance Is1DStreamable (DSDataset DIM2 Double DSAcq) Double where
-    extract1DStreamValue (DataSourceAcq'Dataset ds) = getPosition ds
+    extract1DStreamValue (DataSourceAcq'Dataset ds) (Z :. i) = getPosition ds i
 
 instance Is1DStreamable (DSDataset DIM2 Float DSAcq) Float where
-    extract1DStreamValue (DataSourceAcq'Dataset ds) = getPosition ds
+    extract1DStreamValue (DataSourceAcq'Dataset ds) (Z :. i) = getPosition ds i
 
 instance Is1DStreamable (DSAttenuation DSAcq) Attenuation where
-    extract1DStreamValue (DataSourceAcq'Attenuation ds offset coef mmax) i =
+    extract1DStreamValue (DataSourceAcq'Attenuation ds offset coef mmax) (Z :. i) =
         Attenuation <$> do
-          v <-  extract1DStreamValue ds (i + offset)
+          v <-  extract1DStreamValue ds (Z :. (i + offset))
           if v == badAttenuation
           then throwIO (WrongAttenuation "attenuation is wrong" (i + offset) (float2Double v))
           else case mmax of
@@ -199,10 +203,23 @@ instance Is1DStreamable (DSAttenuation DSAcq) Attenuation where
     extract1DStreamValue (DataSourceAcq'ApplyedAttenuationFactor ds) i = Attenuation . float2Double <$> extract1DStreamValue ds i
     extract1DStreamValue DataSourceAcq'NoAttenuation _                 = pure $ Attenuation 1
 
+
 instance Is1DStreamable (DSDouble DSAcq) CDouble where
     extract1DStreamValue (DataSourceAcq'Double'Hdf5 d) i  = extract1DStreamValue d i
-    extract1DStreamValue (DataSourceAcq'Double'Hdf5WithShift d s) i  = extract1DStreamValue d (i + s)
+    extract1DStreamValue (DataSourceAcq'Double'Hdf5WithShift d s) (Z :. i)  = extract1DStreamValue d (Z :. (i + s))
     extract1DStreamValue (DataSourceAcq'Double'Const d) _ = extract0DStreamValue d
+    extract1DStreamValue (DataSourceAcq'Double'Poni sn t k) i
+        = do let efn = applyTemplate (unScanNumber sn) i t
+             case efn of
+               Right fn -> do
+                        c <- readFile (unpack fn)
+                        let eponi = parseOnly poniP c
+                        case eponi of
+                          Right poni -> pure $ CDouble (getPoniParameter poni k)
+                          Left err   -> throwIO $ CanNotParsePoni err
+               Left err -> throwIO (CanNotApplyTemplate t err)
+    extract1DStreamValue (DataSourceAcq'Double'Poni'WithShift sn t k s) (Z :. i)
+        = extract1DStreamValue (DataSourceAcq'Double'Poni sn t k) (Z :. (i + s))
 
 instance Is1DStreamable (DSDoubles DSAcq) (Data.Vector.Storable.Vector CDouble) where
     extract1DStreamValue (DataSourceAcq'List ds) i = fromList <$> Prelude.mapM (`extract1DStreamValue` i) ds
@@ -221,14 +238,19 @@ instance  Is1DStreamable (DSGeometry DSAcq) Geometry where
 
 instance Is1DStreamable (DSImage DSAcq) Image where
     extract1DStreamValue (DataSourceAcq'Image'Dummy buf) _                    = pure $ ImageDouble buf
-    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Double det ds buf) i       = ImageDouble <$> getArrayInBuffer buf det ds (Z :. i)
-    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Int32 det ds buf) i        = ImageInt32 <$> getArrayInBuffer buf det ds (Z :. i)
-    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Word16 det ds buf) i       = ImageWord16 <$> getArrayInBuffer buf det ds (Z :. i)
-    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Word32 det ds buf) i       = ImageWord32 <$> getArrayInBuffer buf det ds (Z :. i)
-    extract1DStreamValue (DataSourceAcq'Image'Img'Int32 det buf tmpl sn fn) i = ImageInt32 <$> readImgInBuffer buf det (fn tmpl sn i)
+    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Double det ds buf) i       = ImageDouble <$> getArrayInBuffer buf det ds i
+    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Int32 det ds buf) i        = ImageInt32 <$> getArrayInBuffer buf det ds i
+    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Word16 det ds buf) i       = ImageWord16 <$> getArrayInBuffer buf det ds i
+    extract1DStreamValue (DataSourceAcq'Image'Hdf5'Word32 det ds buf) i       = ImageWord32 <$> getArrayInBuffer buf det ds i
+    extract1DStreamValue (DataSourceAcq'Image'Img'Int32 det buf tmpl sn fn) (Z :. i) = ImageInt32 <$> readImgInBuffer buf det (fn tmpl sn i)
+
+instance Is1DStreamable (DSMask DSAcq) (Maybe Mask) where
+    extract1DStreamValue DataSourceAcq'Mask'NoMask _ = pure Nothing
+    extract1DStreamValue (DataSourceAcq'Mask m) _    = pure $ Just m
+    extract1DStreamValue (DataSourceAcq'Mask'Tmpl l d sn) i = Just <$> getMask l d sn i
 
 instance Is1DStreamable (DSPixelCoordinates DSAcq) PixelCoordinates where
-    extract1DStreamValue (DataSourceAcq'PixelCoordinates'Ponis det ponis norm) i =
+    extract1DStreamValue (DataSourceAcq'PixelCoordinates'Ponis det ponis norm) (Z :. i) =
         do
           let poni = printf ponis i
           c <- liftIO $ readFile poni
@@ -238,6 +260,7 @@ instance Is1DStreamable (DSPixelCoordinates DSAcq) PixelCoordinates where
               print poni
               print p
               getPixelsCoordinates'FromPoni det p norm
+    extract1DStreamValue (DataSourceAcq'PixelCoordinates'Const p) _ = pure p
 
 instance Is1DStreamable (DSTimestamp DSAcq) Timestamp where
     extract1DStreamValue (DataSourceAcq'Timestamp'Hdf5 ds) i   = Timestamp <$> extract1DStreamValue ds i
@@ -265,6 +288,18 @@ instance Is2DStreamable (DSDouble DSAcq) CDouble where
     extract2DStreamValue (DataSourceAcq'Double'Hdf5 d) i  = extract2DStreamValue d i
     extract2DStreamValue (DataSourceAcq'Double'Hdf5WithShift d s) (Z :. j :. i)  = extract2DStreamValue d (Z :. j :. (i + s))
     extract2DStreamValue (DataSourceAcq'Double'Const d) _ = extract0DStreamValue d
+    extract2DStreamValue (DataSourceAcq'Double'Poni sn t k) i
+        = do let efn = applyTemplate (unScanNumber sn) i t
+             case efn of
+               Right fn -> do
+                        c <- readFile (unpack fn)
+                        let eponi = parseOnly poniP c
+                        case eponi of
+                          Right poni -> pure $ CDouble (getPoniParameter poni k)
+                          Left err   -> throwIO $ CanNotParsePoni err
+               Left err -> throwIO (CanNotApplyTemplate t err)
+    extract2DStreamValue (DataSourceAcq'Double'Poni'WithShift sn t k s) (Z :. j :. i)
+        = extract2DStreamValue (DataSourceAcq'Double'Poni sn t k) (Z :. j :. (i + s))
 
 instance Is2DStreamable (DSFloat DSAcq) Float where
     extract2DStreamValue (DataSourceAcq'Float'Hdf5 ds) = extract2DStreamValue ds
@@ -302,6 +337,11 @@ instance Is2DStreamable (DSImage DSAcq) Image where
     extract2DStreamValue (DataSourceAcq'Image'Hdf5'Word16 det ds buf) i       = ImageWord16 <$> getArrayInBuffer buf det ds i
     extract2DStreamValue (DataSourceAcq'Image'Hdf5'Word32 det ds buf) i       = ImageWord32 <$> getArrayInBuffer buf det ds i
     extract2DStreamValue (DataSourceAcq'Image'Img'Int32 _det _buf _tmpl _sn _fn) _i = undefined
+
+instance Is2DStreamable (DSMask DSAcq) (Maybe Mask) where
+    extract2DStreamValue DataSourceAcq'Mask'NoMask _ = pure Nothing
+    extract2DStreamValue (DataSourceAcq'Mask m)    _ = pure $ Just m
+    extract2DStreamValue (DataSourceAcq'Mask'Tmpl l d sn) i = Just <$> getMask l d sn i
 
 instance Is2DStreamable (DSPixelCoordinates  DSAcq) PixelCoordinates where
     extract2DStreamValue p _ = extract0DStreamValue p
@@ -381,12 +421,13 @@ instance GDSAK1 Geometry
 instance GDSAK1 Int
 instance GDSAK1 (IOVector a)
 instance GDSAK1 Mask
+instance GDSAK1 MaskLocation
 instance GDSAK1 Normalisation
 instance GDSAK1 PixelCoordinates
-instance GDSAK1 Scannumber
+instance GDSAK1 ScanNumber
 instance GDSAK1 String
 instance GDSAK1 Text
-instance GDSAK1 (Text -> Scannumber -> Int -> FilePath)
+instance GDSAK1 (Text -> ScanNumber -> Int -> FilePath)
 
 class GDataSourceAcq dataAcq where
    g'ds'Shape :: MonadSafe m => dataAcq x -> m DataSourceShape
@@ -557,12 +598,16 @@ data instance DSDouble DSPath
     | DataSourcePath'Double'Hdf5WithShift (DSWrap_ (DSDataset DIM2 Double) DSPath) Int
     | DataSourcePath'Double'Ini ConfigContent Section Key
     | DataSourcePath'Double'Const Double
+    | DataSourcePath'Double'Poni Template PoniKey
+    | DataSourcePath'Double'Poni'WithShift Template PoniKey Int
     deriving (Generic, Show, FromJSON, ToJSON)
 
 data instance DSDouble DSAcq
     = DataSourceAcq'Double'Hdf5 (DSWrap_ (DSDataset DIM2 Double) DSAcq)
     | DataSourceAcq'Double'Hdf5WithShift (DSWrap_ (DSDataset DIM2 Double) DSAcq) Int
     | DataSourceAcq'Double'Const Double
+    | DataSourceAcq'Double'Poni ScanNumber Template PoniKey
+    | DataSourceAcq'Double'Poni'WithShift ScanNumber Template PoniKey Int
     deriving Generic
 
 instance DataSource DSDouble where
@@ -573,6 +618,8 @@ instance DataSource DSDouble where
                     DataSourceShape'Range f (Z :. t) -> DataSourceShape'Range f (Z :. (t - s))
                     DataSourceShape'Range'DIM2 f (Z :. t) n -> DataSourceShape'Range'DIM2 f (Z :. (t - s)) n
   ds'Shape (DataSourceAcq'Double'Const _) = pure shape1
+  ds'Shape (DataSourceAcq'Double'Poni _ _ _) = pure shape1 -- TODO better computation of the shape
+  ds'Shape (DataSourceAcq'Double'Poni'WithShift _ _ _ _) = pure $ shape1 -- TODO better computation of the shape
 
   withDataSourceP f (DataSourcePath'Double'Hdf5 ps) g
       = withDataSourcesP f ps $ \p ds -> do
@@ -596,6 +643,10 @@ instance DataSource DSDouble where
       (\case
         Nothing -> throwM $ CanNotOpenDataSource'Double'Ini s k
         Just v  ->  g path (DataSourceAcq'Double'Const v))
+  withDataSourceP (ScanFile _ sn) path@(DataSourcePath'Double'Poni t k) g
+      = g path (DataSourceAcq'Double'Poni sn t k)
+  withDataSourceP (ScanFile _ sn) path@(DataSourcePath'Double'Poni'WithShift t k s) g
+      = g path (DataSourceAcq'Double'Poni'WithShift sn t k s)
 
 -- [Double]
 
@@ -688,7 +739,7 @@ data family DSImage (k :: DSKind)
 data instance DSImage DSPath
   = DataSourcePath'Image'Dummy (Detector Hkl DIM2) Double
   | DataSourcePath'Image'Hdf5 (Detector Hkl DIM2) (DSWrap_ (DSDataset DIM3 Int32) DSPath) -- TODO Int32 is wrong
-  | DataSourcePath'Image'Img (Detector Hkl DIM2) Text Scannumber
+  | DataSourcePath'Image'Img (Detector Hkl DIM2) Text ScanNumber
   deriving (Eq, Generic, Show, FromJSON, ToJSON)
 
 data instance DSImage DSAcq
@@ -697,7 +748,7 @@ data instance DSImage DSAcq
     | DataSourceAcq'Image'Hdf5'Int32 (Detector Hkl DIM2) Dataset (IOVector Int32)
     | DataSourceAcq'Image'Hdf5'Word16 (Detector Hkl DIM2) Dataset (IOVector Word16)
     | DataSourceAcq'Image'Hdf5'Word32 (Detector Hkl DIM2) Dataset (IOVector Word32)
-    | DataSourceAcq'Image'Img'Int32 (Detector Hkl DIM2) (IOVector Int32) Text Scannumber (Text -> Scannumber -> Int -> FilePath)
+    | DataSourceAcq'Image'Img'Int32 (Detector Hkl DIM2) (IOVector Int32) Text ScanNumber (Text -> ScanNumber -> Int -> FilePath)
     deriving Generic
 
 
@@ -746,13 +797,13 @@ instance DataSource DSImage where
                                          g path (DataSourceAcq'Image'Hdf5'Word32 det ds arr))
                                     ]
 
-    withDataSourceP (ScanFile _ sn) path@(DataSourcePath'Image'Img det tmpl (Scannumber sn0)) g
+    withDataSourceP (ScanFile _ sn) path@(DataSourcePath'Image'Img det tmpl (ScanNumber sn0)) g
         = do let n = size . shape $ det
              arr <- liftIO $ unsafeNew n
              g path (DataSourceAcq'Image'Img'Int32 det arr tmpl sn f)
                  where
-                   f :: Text -> Scannumber -> Int -> FilePath
-                   f tmpl' (Scannumber sn') i = printf (unpack tmpl') sn0 sn0 ((sn' - sn0) * 1029 + i)
+                   f :: Text -> ScanNumber -> Int -> FilePath
+                   f tmpl' (ScanNumber sn') i = printf (unpack tmpl') sn0 sn0 ((sn' - sn0) * 1029 + i)
 
 instance HasFieldValue [DSImage DSPath] where
     fieldvalue = autoJSON
@@ -783,14 +834,17 @@ data instance DSMask DSPath
 
 data instance DSMask DSAcq
     = DataSourceAcq'Mask Mask
+    | DataSourceAcq'Mask'Tmpl MaskLocation (Detector Hkl DIM2) ScanNumber
     | DataSourceAcq'Mask'NoMask
     deriving Generic
 
 instance DataSource DSMask where
     withDataSourceP _ path@DataSourcePath'Mask'NoMask g = g path DataSourceAcq'Mask'NoMask
     withDataSourceP (ScanFile _ sn) path@(DataSourcePath'Mask l d) g
-        = do  m <- getMask l d sn
-              g path (DataSourceAcq'Mask m)
+        = do if maskPerIndex l
+             then g path (DataSourceAcq'Mask'Tmpl l d sn)
+             else do m <- getMask l d sn Z
+                     g path (DataSourceAcq'Mask m)
 
 
 -- PixelCoordinates
@@ -821,19 +875,19 @@ instance DataSource DSPixelCoordinates where
     --              m <- liftIO $ getPixelsCoordinates'FromPoni d p norm
     --              g path (DataSourceAcq'PixelCoordinates'Const m)
 
--- Scannumber
+-- ScanNumber
 
-data family DSScannumber (k :: DSKind)
-data instance DSScannumber DSPath
-    = DataSourcePath'Scannumber
+data family DSScanNumber (k :: DSKind)
+data instance DSScanNumber DSPath
+    = DataSourcePath'ScanNumber
     deriving (Eq, Generic, Show, FromJSON, ToJSON)
 
-newtype instance DSScannumber DSAcq
-    = DataSourceAcq'Scannumber'Const Scannumber
+newtype instance DSScanNumber DSAcq
+    = DataSourceAcq'ScanNumber'Const ScanNumber
     deriving Generic
 
-instance DataSource DSScannumber where
-  withDataSourceP (ScanFile _ s) path@DataSourcePath'Scannumber g = g path (DataSourceAcq'Scannumber'Const s)
+instance DataSource DSScanNumber where
+  withDataSourceP (ScanFile _ s) path@DataSourcePath'ScanNumber g = g path (DataSourceAcq'ScanNumber'Const s)
 
 
 -- Timestamp

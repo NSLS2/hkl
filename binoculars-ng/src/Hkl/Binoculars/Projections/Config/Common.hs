@@ -109,7 +109,7 @@ instance HasIniConfig Common where
           , binocularsConfig'Common'Detector = defaultDetector
           , binocularsConfig'Common'Image = Nothing
           , binocularsConfig'Common'CentralPixel = (0, 0)
-          , binocularsConfig'Common'Sdd = Meter (1 *~ meter)
+          , binocularsConfig'Common'Sdd = Meter (0 *~ meter)
           , binocularsConfig'Common'Detrot = Degree (0 *~ degree)
           , binocularsConfig'Common'AttenuationCoefficient = Nothing
           , binocularsConfig'Common'AttenuationMax = Nothing
@@ -406,9 +406,10 @@ instance HasIniConfig Common where
                                                            CristalK6C -> mkDetector HklBinocularsDetectorEnum'XpadFlatCorrected
                                                            Custom -> binocularsConfig'Common'Detector defaultConfig
                                                            DiffabsCirpad -> undefined -- mkDetector HklBinocularsDetectorEnum'Cirpad
-                                                           MarsCx3Sbs -> mkDetector HklBinocularsDetectorEnum'Dectris'PilatusCdTe2M
                                                            MarsFlyscan -> mkDetector HklBinocularsDetectorEnum'MerlinMedipix3rxQuad
                                                            MarsSbs -> mkDetector HklBinocularsDetectorEnum'MerlinMedipix3rxQuad
+                                                           MarsSbsCx3 -> mkDetector HklBinocularsDetectorEnum'Dectris'PilatusCdTe2M
+                                                           MarsSbsPyFAI -> mkDetector HklBinocularsDetectorEnum'Dectris'PilatusCdTe2M
                                                            SixsFlyMedH -> binocularsConfig'Common'Detector defaultConfig
                                                            SixsFlyMedHGisaxs -> binocularsConfig'Common'Detector defaultConfig
                                                            SixsFlyMedV -> binocularsConfig'Common'Detector defaultConfig
@@ -453,9 +454,10 @@ instance HasIniConfig Common where
                                                                         CristalK6C        -> Geometry'Factory K6c Nothing
                                                                         Custom            -> undefined
                                                                         DiffabsCirpad     -> cirpad
-                                                                        MarsCx3Sbs        -> marsCx3
                                                                         MarsFlyscan       -> Geometry'Factory Mars Nothing
                                                                         MarsSbs           -> Geometry'Factory Mars Nothing
+                                                                        MarsSbsCx3        -> marsCx3
+                                                                        MarsSbsPyFAI      -> pyfai
                                                                         SixsFlyMedH       -> Geometry'Factory MedH Nothing
                                                                         SixsFlyMedHGisaxs -> sixsMedHGisaxs
                                                                         SixsFlyMedV       -> Geometry'Factory MedV Nothing

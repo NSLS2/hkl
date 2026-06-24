@@ -99,7 +99,7 @@ class ChunkP d => FramesP d b where
                    do sh <- ds'Shape p'
                       case sh of
                         DataSourceShape'Range _ _ ->
-                            forM_ js (tryYield . extract1DStreamValue p')
+                            forM_ js (\j -> do tryYield $ extract1DStreamValue p' (ix1 j))
                         DataSourceShape'Range'DIM2 _ _ (Z :. ks) ->
                             forM_ [0..ks-1] (\k -> forM_ js (\j -> do tryYield $ extract2DStreamValue p' (ix2 j k)))
 
