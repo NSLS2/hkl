@@ -125,11 +125,10 @@ clean-local:
 EXTRA_DIST = $(binoculars_ng_SOURCES) $(test_sources)
 
 deploy-sixs3:
-	scp $$($(CABAL) --config-file=empty-config-file \
-                        list-bin binoculars-ng) root@sixs3:/usr/bin
+	scp $$($(CABAL) --config-file=empty-config-file list-bin binoculars-ng) root@sixs3:/usr/bin
 deploy-mars6:
-	scp $$($(CABAL) --config-file=empty-config-file \
-                        list-bin binoculars-ng) root@mars6:/usr/bin
+	scp $$($(CABAL) --config-file=empty-config-file list-bin binoculars-ng) root@mars6:/usr/bin
+
 ###############
 # local tests #
 ###############
