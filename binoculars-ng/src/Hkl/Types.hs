@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UnicodeSyntax              #-}
@@ -8,6 +9,7 @@ module Hkl.Types ( AbsDirPath
                  , Degree(..)
                  , Key
                  , Meter(..)
+                 , PoniesTemplate(..)
                  , SampleName
                  , ScanFile(..)
                  , ScanFilePath(..)
@@ -51,7 +53,7 @@ beamlineUpper b = [toUpper x | x ← show b]
 
 newtype ConfigContent
   = ConfigContent Text
-  deriving (IsString, Show, FromJSON, ToJSON)
+  deriving newtype (IsString, FromJSON, Show, ToJSON)
 
 -- Degree
 
@@ -88,6 +90,12 @@ instance ToJSON Meter where
 
 type Key = Text
 
+-- PoniesTemplate
+
+newtype PoniesTemplate
+    = PoniesTemplate { unPoniesTemplate :: Template }
+    deriving newtype (Eq, Show, FromJSON, ToJSON)
+
 -- ScanFile
 
 data ScanFile l = ScanFile l ScanNumber
@@ -100,7 +108,8 @@ data ScanFilePath = ScanFilePath (Path Abs File) ScanNumber
 -- Scannumber
 
 newtype ScanNumber = ScanNumber { unScanNumber :: Int }
-  deriving (Eq, Show, FromJSON, ToJSON)
+  deriving (Eq, Show)
+  deriving newtype (FromJSON, ToJSON)
 
 -- Section
 
@@ -112,7 +121,8 @@ type Section = Text
 -- Template
 
 newtype Template = Template { unTemplate :: Text }
-    deriving (Eq, Show, FromJSON, ToJSON)
+    deriving (Eq, Show)
+    deriving newtype (FromJSON, ToJSON)
 
 -- Timestamp
 

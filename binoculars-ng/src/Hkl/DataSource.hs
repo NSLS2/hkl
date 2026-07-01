@@ -158,8 +158,8 @@ instance Is0DStreamable (DSMask DSAcq) (Maybe Mask) where
     extract0DStreamValue (DataSourceAcq'Mask'Tmpl l d sn)    = Just <$> getMask l d sn Z
 
 instance Is0DStreamable (DSPixelCoordinates DSAcq) PixelCoordinates where
-    extract0DStreamValue (DataSourceAcq'PixelCoordinates'Const p) = pure p
-    extract0DStreamValue (DataSourceAcq'PixelCoordinates'Ponis{}) = undefined -- should never happend
+    extract0DStreamValue (DataSourceAcq'PixelCoordinates'Const p)  = pure p
+    extract0DStreamValue (DataSourceAcq'PixelCoordinates'Ponies{}) = undefined -- should never happend
 
 instance Is0DStreamable (DSScanNumber DSAcq) ScanNumber where
     extract0DStreamValue (DataSourceAcq'ScanNumber'Const sn) = pure sn
@@ -209,7 +209,7 @@ instance Is1DStreamable (DSDouble DSAcq) CDouble where
     extract1DStreamValue (DataSourceAcq'Double'Hdf5WithShift d s) (Z :. i)  = extract1DStreamValue d (Z :. (i + s))
     extract1DStreamValue (DataSourceAcq'Double'Const d) _ = extract0DStreamValue d
     extract1DStreamValue (DataSourceAcq'Double'Poni sn t k) i
-        = do let efn = applyTemplate (unScanNumber sn) i t
+        = do let efn = applyTemplate (unScanNumber sn) i (unPoniesTemplate t)
              case efn of
                Right fn -> do
                         c <- readFile (unpack fn)
@@ -217,7 +217,7 @@ instance Is1DStreamable (DSDouble DSAcq) CDouble where
                         case eponi of
                           Right poni -> pure $ CDouble (getPoniParameter poni k)
                           Left err   -> throwIO $ CanNotParsePoni err
-               Left err -> throwIO (CanNotApplyTemplate t err)
+               Left err -> throwIO (CanNotApplyPoniesTemplate t err)
     extract1DStreamValue (DataSourceAcq'Double'Poni'WithShift sn t k s) (Z :. i)
         = extract1DStreamValue (DataSourceAcq'Double'Poni sn t k) (Z :. (i + s))
 
@@ -250,16 +250,16 @@ instance Is1DStreamable (DSMask DSAcq) (Maybe Mask) where
     extract1DStreamValue (DataSourceAcq'Mask'Tmpl l d sn) i = Just <$> getMask l d sn i
 
 instance Is1DStreamable (DSPixelCoordinates DSAcq) PixelCoordinates where
-    extract1DStreamValue (DataSourceAcq'PixelCoordinates'Ponis det ponis norm) (Z :. i) =
-        do
-          let poni = printf ponis i
-          c <- liftIO $ readFile poni
-          case parseOnly poniP c of
-            Left _  -> error $ "Cannot parse Poni file " <> poni
-            Right p -> do
-              print poni
-              print p
-              getPixelsCoordinates'FromPoni det p norm
+    extract1DStreamValue (DataSourceAcq'PixelCoordinates'Ponies sn det t norm) i
+        = do let efn = applyTemplate (unScanNumber sn) i (unPoniesTemplate t)
+             case efn of
+               Right fn -> do
+                        c <- readFile (unpack fn)
+                        case parseOnly poniP c of
+                          Right p -> do
+                            getPixelsCoordinates'FromPoni det p norm
+                          Left err  -> throwIO $ CanNotParsePoni err
+               Left err -> throwIO $ CanNotApplyPoniesTemplate t err
     extract1DStreamValue (DataSourceAcq'PixelCoordinates'Const p) _ = pure p
 
 instance Is1DStreamable (DSTimestamp DSAcq) Timestamp where
@@ -289,7 +289,7 @@ instance Is2DStreamable (DSDouble DSAcq) CDouble where
     extract2DStreamValue (DataSourceAcq'Double'Hdf5WithShift d s) (Z :. j :. i)  = extract2DStreamValue d (Z :. j :. (i + s))
     extract2DStreamValue (DataSourceAcq'Double'Const d) _ = extract0DStreamValue d
     extract2DStreamValue (DataSourceAcq'Double'Poni sn t k) i
-        = do let efn = applyTemplate (unScanNumber sn) i t
+        = do let efn = applyTemplate (unScanNumber sn) i (unPoniesTemplate t)
              case efn of
                Right fn -> do
                         c <- readFile (unpack fn)
@@ -297,7 +297,7 @@ instance Is2DStreamable (DSDouble DSAcq) CDouble where
                         case eponi of
                           Right poni -> pure $ CDouble (getPoniParameter poni k)
                           Left err   -> throwIO $ CanNotParsePoni err
-               Left err -> throwIO (CanNotApplyTemplate t err)
+               Left err -> throwIO (CanNotApplyPoniesTemplate t err)
     extract2DStreamValue (DataSourceAcq'Double'Poni'WithShift sn t k s) (Z :. j :. i)
         = extract2DStreamValue (DataSourceAcq'Double'Poni sn t k) (Z :. j :. (i + s))
 
@@ -424,6 +424,7 @@ instance GDSAK1 Mask
 instance GDSAK1 MaskLocation
 instance GDSAK1 Normalisation
 instance GDSAK1 PixelCoordinates
+instance GDSAK1 PoniesTemplate
 instance GDSAK1 ScanNumber
 instance GDSAK1 String
 instance GDSAK1 Text
@@ -598,16 +599,16 @@ data instance DSDouble DSPath
     | DataSourcePath'Double'Hdf5WithShift (DSWrap_ (DSDataset DIM2 Double) DSPath) Int
     | DataSourcePath'Double'Ini ConfigContent Section Key
     | DataSourcePath'Double'Const Double
-    | DataSourcePath'Double'Poni Template PoniKey
-    | DataSourcePath'Double'Poni'WithShift Template PoniKey Int
+    | DataSourcePath'Double'Poni PoniesTemplate PoniKey
+    | DataSourcePath'Double'Poni'WithShift PoniesTemplate PoniKey Int
     deriving (Generic, Show, FromJSON, ToJSON)
 
 data instance DSDouble DSAcq
     = DataSourceAcq'Double'Hdf5 (DSWrap_ (DSDataset DIM2 Double) DSAcq)
     | DataSourceAcq'Double'Hdf5WithShift (DSWrap_ (DSDataset DIM2 Double) DSAcq) Int
     | DataSourceAcq'Double'Const Double
-    | DataSourceAcq'Double'Poni ScanNumber Template PoniKey
-    | DataSourceAcq'Double'Poni'WithShift ScanNumber Template PoniKey Int
+    | DataSourceAcq'Double'Poni ScanNumber PoniesTemplate PoniKey
+    | DataSourceAcq'Double'Poni'WithShift ScanNumber PoniesTemplate PoniKey Int
     deriving Generic
 
 instance DataSource DSDouble where
@@ -852,21 +853,21 @@ instance DataSource DSMask where
 data family DSPixelCoordinates (k :: DSKind)
 data instance DSPixelCoordinates DSPath
     = DataSourcePath'PixelCoordinates (Detector Hkl DIM2) (Int, Int) Meter Degree Normalisation
-    | DataSourcePath'PixelCoordinates'Ponis (Detector Hkl DIM2) FilePath Normalisation
+    | DataSourcePath'PixelCoordinates'Ponies (Detector Hkl DIM2) PoniesTemplate Normalisation
     deriving (Generic, Show)
     deriving anyclass (FromJSON, ToJSON)
 
 data instance DSPixelCoordinates DSAcq
     = DataSourceAcq'PixelCoordinates'Const PixelCoordinates
-    | DataSourceAcq'PixelCoordinates'Ponis (Detector Hkl DIM2) FilePath Normalisation
+    | DataSourceAcq'PixelCoordinates'Ponies ScanNumber (Detector Hkl DIM2) PoniesTemplate Normalisation
     deriving Generic
 
 instance DataSource DSPixelCoordinates where
     withDataSourceP _ path@(DataSourcePath'PixelCoordinates d c sdd detrot norm) g
         = do  m <- liftIO $ getPixelsCoordinates d c (unMeter sdd) (unDegree detrot) norm
               g path (DataSourceAcq'PixelCoordinates'Const m)
-    withDataSourceP _ path@(DataSourcePath'PixelCoordinates'Ponis d ponis norm) g
-        = g path (DataSourceAcq'PixelCoordinates'Ponis d ponis norm)
+    withDataSourceP (ScanFile _ sn) path@(DataSourcePath'PixelCoordinates'Ponies d ponis norm) g
+        = g path (DataSourceAcq'PixelCoordinates'Ponies sn d ponis norm)
     -- withDataSourceP _ path@(DataSourcePath'PixelCoordinates'Poni d poni norm) g
     --     = do c <- liftIO $ readFile poni
     --          case parseOnly poniP c of

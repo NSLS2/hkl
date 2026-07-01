@@ -157,12 +157,11 @@ pyfai
         [ Node noAxis []
         , Node (Axis "rot1" (Rotation 0 0 (-1)) Unit'Angle'Radian)
           [ Node (Axis "rot2" (Rotation 0 (-1) 0) Unit'Angle'Radian)
-            [ Node (Axis "rot3" (Rotation 0 (-1) 0) Unit'Angle'Radian)
-              [Node (Axis "poni1" (Translation 0 0 1) Unit'Length'Meter)
-               [ Node (Axis "poni2" (Translation 0 1 0) Unit'Length'Meter)
-                 [ Node (Axis "sdd" (Translation 1 0 0) Unit'Length'Meter) []
-                 ]
-               ]
+            [ Node (Axis "rot3" (Rotation 1 0 0) Unit'Angle'Radian)
+              [ Node (Axis "poni1" (Translation 0 0 1) Unit'Length'Meter)
+                [ Node (Axis "poni2" (Translation 0 1 0) Unit'Length'Meter)
+                  [ Node (Axis "sdd" (Translation 1 0 0) Unit'Length'Meter) [] ]
+                ]
               ]
             ]
           ]

@@ -50,6 +50,7 @@ module Hkl.Binoculars.Config
     , Meter(..)
     , NCores(..)
     , PolarisationCorrection(..)
+    , PoniesTemplate(..)
     , ProjectionType(..)
     , Resolutions(..)
     , RLimits(..)
@@ -827,6 +828,10 @@ newtype PolarisationCorrection =
   deriving (Eq, Show)
   deriving newtype HasFieldValue
 
+-- PoniesTemplate
+
+deriving newtype instance HasFieldValue PoniesTemplate
+
 -- ProjectionType
 
 data ProjectionType = AnglesProjection
@@ -1108,6 +1113,10 @@ instance FieldEmitter String where
 
 instance FieldParsable String where
   fieldParser = unpack <$> takeText
+
+-- Template
+
+deriving newtype instance HasFieldValue Template
 
 -- Transformation
 

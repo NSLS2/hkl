@@ -91,6 +91,7 @@ instance HasIniConfig Common where
           , binocularsConfig'Common'DynamicMask            :: Maybe DynamicMask
           , binocularsConfig'Common'GeometryValues         :: Map Text Double
           , binocularsConfig'Common'GeometryShifts         :: Map Text Int
+          , binocularsConfig'Common'PoniesTemplate         :: Maybe PoniesTemplate
           , binocularsConfig'Common'_Content               :: ConfigContent  -- TO DELETE
           } deriving (Show, Generic)
 
@@ -125,6 +126,7 @@ instance HasIniConfig Common where
           , binocularsConfig'Common'DynamicMask = Nothing
           , binocularsConfig'Common'GeometryValues = empty
           , binocularsConfig'Common'GeometryShifts = empty
+          , binocularsConfig'Common'PoniesTemplate = Nothing
           , binocularsConfig'Common'_Content = ConfigContent "" -- TODELETE
           }
 
@@ -366,6 +368,13 @@ instance HasIniConfig Common where
                                             , " `<not set>` - process all pixels."
                                             , " `threshold` - process pixel only if its value is lower than `threshold`"
                                             ]
+                                           <> elemFMbDef "ponies" binocularsConfig'Common'PoniesTemplate c defaultConfig
+                                            [ "ponies files template in order to set the detector position."
+                                            , ""
+                                            , "the ponie template can contain these keyworks `{scannumber:<fmt>}`, `{index0:<fmt>}`, `{index1:<fmt>}`,"
+                                            , "which are replaced with the right number using the <fmt> strings."
+                                            , "`poni_{index0:02d}.poni` and `index0=1` (second step of the scan iteration) gives `poni_01.poni`"
+                                            ]
                                            )
                                          ]
               , iniGlobals = []
@@ -475,6 +484,7 @@ instance HasIniConfig Common where
          binocularsConfig'Common'DynamicMask <- parseMb cfg "input" "dynamic_mask"
          binocularsConfig'Common'GeometryValues <- parseIniFile cfg iniParser'GeometryValues
          binocularsConfig'Common'GeometryShifts <- parseIniFile cfg (iniParser'GeometryShifts binocularsConfig'Common'Geometry)
+         binocularsConfig'Common'PoniesTemplate <- parseMb cfg "input" "ponies"
          let binocularsConfig'Common'_Content = content  -- TO DELETE
 
          pure BinocularsConfig'Common{..}

@@ -86,7 +86,7 @@ data HklPyFAIException
 instance Exception HklPyFAIException
 
 data HklTemplateException
-    = CanNotApplyTemplate Template String
+    = CanNotApplyPoniesTemplate PoniesTemplate String
       deriving  (Show, Typeable)
 
 instance Exception HklTemplateException
