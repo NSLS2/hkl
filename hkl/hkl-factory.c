@@ -48,6 +48,7 @@ HklFactory **hkl_factory_get_all(size_t *n)
 	extern HklFactory soleil_sixs_med_2_3_v2;
 	extern HklFactory zaxis;
 	extern HklFactory aps_polar;
+	extern HklFactory nsls_ii_cdi_3_2_2;
 
 	static HklFactory *all[] = {
 		&twoC,
@@ -72,6 +73,7 @@ HklFactory **hkl_factory_get_all(size_t *n)
 		&soleil_sixs_med_2_3_v2,
 		&zaxis,
 		&aps_polar,
+		&nsls_ii_cdi_3_2_2,
 	};
 
 	*n = ARRAY_SIZE(all);
