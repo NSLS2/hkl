@@ -43,3 +43,7 @@ ghkl3d
 /test/tap/libtap.a
 /Documentation/hkl.html
 *_flymake.h
+*.conda# pixi environments
+.pixi/*
+!.pixi/config.toml
+*.conda

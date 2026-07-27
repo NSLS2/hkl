@@ -1,0 +1,65 @@
+schema_version: 1
+
+package:
+  name: hkl
+  version: "5.1.9"
+
+source:
+  path: ..
+  use_gitignore: true
+
+build:
+  number: 0
+  # hkl only builds on Linux (no Windows, no macOS support)
+  skip:
+    - win
+    - osx
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ stdlib('c') }}
+    - autoconf
+    - git
+    - make
+    - pkg-config
+  host:
+    - autoconf-archive
+    - automake
+    - glib
+    - glib-tools
+    - gobject-introspection
+    - gsl
+    - libcblas
+    - libglib
+    - libtool
+    - m4
+    - openssl
+    - zlib
+  run:
+    - gobject-introspection
+    - libglib
+    - pygobject
+
+tests:
+  - python:
+      imports:
+        - gi
+      pip_check: false
+  - script:
+      - python ${{ RECIPE_DIR }}/run_test.py
+    files:
+      recipe:
+        - run_test.py
+    requirements:
+      run:
+        - python
+        - pygobject
+
+about:
+  homepage: http://repo.or.cz/w/hkl.git
+  summary: Synchrotron SOLEIL library for diffractometer operations.
+  license: GPL-3.0-or-later
+  license_file: COPYING
+  documentation: https://people.debian.org/~picca/hkl/hkl.html
+  repository: http://repo.or.cz/w/hkl.git
