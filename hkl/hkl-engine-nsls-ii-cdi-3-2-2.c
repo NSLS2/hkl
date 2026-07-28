@@ -67,6 +67,10 @@
 #define HKL_GEOMETRY_NSLS_II_CDI_3_2_2_DESCRIPTION			\
 	"+ xrays source fix allong the :math:`\\vec{x}` direction (1, 0, 0)\n" \
 	"+ 5 axes for the sample (outermost to innermost)\n"		\
+        "\n\n"                                                          \
+        "Note that the conventions in hkl are different than at NSLS-II\n"\
+        "At NSLS-II the beam is in [0, 0, 1], vertical is [0, 1, 0] and outboard is [1, 0, 0]\n" \
+        "\n\n" \
 	"\n"								\
 	"  + **" MU "** : rotating around the vertical :math:`\\vec{z}` direction (0, 0, 1)\n" \
 	"  + **" OMEGA "** : rotating around the horizontal :math:`\\vec{y}` direction (0, 1, 0)\n" \
