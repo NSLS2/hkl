@@ -21,60 +21,83 @@
  * Authors: Picca Frédéric-Emmanuel <picca@synchrotron-soleil.fr>
  *          Thomas A Caswell <tcaswell@bnl.gov>
  */
+
+/* NSLS-II CDI 3-2-2 diffractometer.
+ *
+ * The instrument has a 5-circle sample stack (mu carries omega
+ * carries chi carries a second omega/chi pair, named omega2/chi2
+ * here) and two independent detector arms, each carrying 2 axes
+ * (tth, phi).  A libhkl geometry supports only a single detector
+ * holder, so this geometry describes the sample stack plus ONE
+ * detector arm.  Client software instantiates it once per arm and is
+ * responsible for keeping the sample axis values synchronized
+ * between the two instances (libhkl has no runtime linkage between
+ * geometry instances anyway).
+ *
+ * NOTE: the generic q2/qper_qpar/tth2 engines are not registered
+ * here because they hard-code detector axes named "gamma"/"delta"
+ * (see hkl-pseudoaxis-common-q.c).
+ */
 #include <gsl/gsl_sys.h>                // for gsl_isnan
 #include "hkl-factory-private.h"        // for autodata_factories_, etc
 #include "hkl-pseudoaxis-common-hkl-private.h"  // for hkl_mode_operations, etc
-#include "hkl-pseudoaxis-common-psi-private.h"  // for hkl_engine_psi_new, etc
-#include "hkl-pseudoaxis-common-q-private.h"  // for hkl_engine_q2_new, etc
-#include "hkl-pseudoaxis-common-tth-private.h"  // for hkl_engine_tth2_new, etc
 #include "hkl-pseudoaxis-common-readonly-private.h"
 
 /**************/
 /* Axes names */
 /**************/
 
-/* TODO: replace with the real CDI-3-2-2 axes */
+/* sample, outermost to innermost */
 #define MU "mu"
 #define OMEGA "omega"
 #define CHI "chi"
+#define OMEGA2 "omega2"
+#define CHI2 "chi2"
+
+/* detector arm */
+#define TTH "tth"
 #define PHI "phi"
-#define GAMMA "gamma"
-#define DELTA "delta"
 
 /************/
 /* Geometry */
 /************/
 
+/* TODO: check the exact rotation senses (signs) of every axis. */
+
 #define HKL_GEOMETRY_NSLS_II_CDI_3_2_2_DESCRIPTION			\
 	"+ xrays source fix allong the :math:`\\vec{x}` direction (1, 0, 0)\n" \
-	"+ 4 axes for the sample\n"					\
+	"+ 5 axes for the sample (outermost to innermost)\n"		\
 	"\n"								\
-	"  + **" MU "** : rotating around the :math:`\\vec{z}` direction (0, 0, 1)\n" \
-	"  + **" OMEGA "** : rotating around the :math:`-\\vec{y}` direction (0, -1, 0)\n" \
-	"  + **" CHI "** : rotating around the :math:`\\vec{x}` direction (1, 0, 0)\n" \
-	"  + **" PHI "** : rotating around the :math:`-\\vec{y}` direction (0, -1, 0)\n" \
+	"  + **" MU "** : rotating around the vertical :math:`\\vec{z}` direction (0, 0, 1)\n" \
+	"  + **" OMEGA "** : rotating around the horizontal :math:`\\vec{y}` direction (0, 1, 0)\n" \
+	"  + **" CHI "** : rotating around the beam :math:`\\vec{x}` direction (1, 0, 0)\n" \
+	"  + **" OMEGA2 "** : rotating around the horizontal :math:`\\vec{y}` direction (0, 1, 0)\n" \
+	"  + **" CHI2 "** : rotating around the beam :math:`\\vec{x}` direction (1, 0, 0)\n" \
 	"\n"								\
-	"+ 2 axes for the detector\n"					\
+	"+ 2 axes for the detector (one of the two physical arms)\n"	\
 	"\n"								\
-	"  + **" GAMMA "** : rotation around the :math:`\\vec{z}` direction (0, 0, 1)\n" \
-	"  + **" DELTA "** : rotation around the :math:`-\\vec{y}` direction (0, -1, 0)\n"
+	"  + **" TTH "** : rotation around the :math:`\\vec{z}` direction (0, 0, 1)\n" \
+	"  + **" PHI "** : rotation around the :math:`\\vec{y}` direction (0, 1, 0)\n"
 
-static const char* hkl_geometry_nsls_ii_cdi_3_2_2_axes[] = {MU, OMEGA, CHI, PHI, GAMMA, DELTA};
+static const char* hkl_geometry_nsls_ii_cdi_3_2_2_axes[] = {MU, OMEGA, CHI, OMEGA2, CHI2, TTH, PHI};
 
 static HklGeometry *hkl_geometry_new_nsls_ii_cdi_3_2_2(const HklFactory *factory)
 {
 	HklGeometry *self = hkl_geometry_new(factory, &hkl_geometry_operations_defaults);
 	HklHolder *h;
 
+	/* sample: mu carries omega carries chi carries omega2 carries chi2 */
 	h = hkl_geometry_add_holder(self);
 	hkl_holder_add_rotation(h, MU, 0, 0, 1, &hkl_unit_angle_deg);
-	hkl_holder_add_rotation(h, OMEGA, 0, -1, 0, &hkl_unit_angle_deg);
+	hkl_holder_add_rotation(h, OMEGA, 0, 1, 0, &hkl_unit_angle_deg);
 	hkl_holder_add_rotation(h, CHI, 1, 0, 0, &hkl_unit_angle_deg);
-	hkl_holder_add_rotation(h, PHI, 0, -1, 0, &hkl_unit_angle_deg);
+	hkl_holder_add_rotation(h, OMEGA2, 0, 1, 0, &hkl_unit_angle_deg);
+	hkl_holder_add_rotation(h, CHI2, 1, 0, 0, &hkl_unit_angle_deg);
 
+	/* detector arm */
 	h = hkl_geometry_add_holder(self);
-	hkl_holder_add_rotation(h, GAMMA, 0, 0, 1, &hkl_unit_angle_deg);
-	hkl_holder_add_rotation(h, DELTA, 0, -1, 0, &hkl_unit_angle_deg);
+	hkl_holder_add_rotation(h, TTH, 0, 0, 1, &hkl_unit_angle_deg);
+	hkl_holder_add_rotation(h, PHI, 0, 1, 0, &hkl_unit_angle_deg);
 
 	return self;
 }
@@ -83,71 +106,12 @@ static HklGeometry *hkl_geometry_new_nsls_ii_cdi_3_2_2(const HklFactory *factory
 /* Modes */
 /*********/
 
-/* exemple of a lowlevel gsl function use to compute an hkl bissector
- * vertical mode */
-static int _bissector_vertical_func(const gsl_vector *x, void *params, gsl_vector *f)
+/* skeleton hkl mode: move one sample axis and the two detector arm
+ * axes.  RUBh_minus_Q_func solves for exactly three axes. */
+static HklMode *lifting_detector_omega(void)
 {
-	const double omega = x->data[0];
-	const double tth = x->data[3];
-
-	/* this method check that all the x values are valid. Sometime
-	 * the computation produce NAN values. In that case
-	 * computation is skipped */
-	CHECK_NAN(x->data, x->size);
-
-	/* do the hkl computation which fill the f[0..2] values */
-	RUBh_minus_Q(x->data, params, f->data);
-
-	/* here a mode specific equation requiered due to the number
-	 * of axes to fit (4 in this case) */
-	f->data[3] = tth - 2 * fmod(omega,M_PI);
-
-	return  GSL_SUCCESS;
-}
-
-/* Declare the number of axes expected by the gsl low level
- * function. So during the HklMode configuration there is a runtime
- * check which ensure that the right number of axes are given to the
- * HklMode. */
-static const HklFunction bissector_vertical_func = {
-	.function = _bissector_vertical_func,
-	.size = 4,
-};
-
-/* exemple of a mode with 4 axes. In that case you need the previously
- * defined function */
-static HklMode *bissector_vertical(void)
-{
-	/* axes_r is the axes list requiered to compute the pseudo axes values */
-	static const char* axes_r[] = {MU, OMEGA, CHI, PHI, GAMMA, DELTA};
-
-	/* axes_w is the axes list use when you write the pseudo axes
-	 * values. You move only thoses axes when you use this
-	 * mode. */
-	static const char* axes_w[] = {OMEGA, CHI, PHI, DELTA};
-
-	/* here a list of functions use to solve the mode */
-	static const HklFunction *functions[] = {&bissector_vertical_func};
-
-	/* here just the description of the mode: name, axes_r, axes_w, functions */
-	static const HklModeAutoInfo info = {
-		HKL_MODE_AUTO_INFO(__func__, axes_r, axes_w, functions),
-	};
-
-	/* instantiate a new mode */
-	return hkl_mode_auto_new(&info,
-				 &hkl_mode_operations,
-				 TRUE);
-}
-
-/* here an exemple of a three axes hkl mode, a convenience function is
- * provided to do the computation (RUBh_minus_Q_func). This funtion
- * takes only three axes. So writing a generic hkl mode with only
- * three axes is really simple */
-static HklMode *constant_omega_vertical(void)
-{
-	static const char* axes_r[] = {MU, OMEGA, CHI, PHI, GAMMA, DELTA};
-	static const char* axes_w[] = {CHI, PHI, DELTA};
+	static const char* axes_r[] = {MU, OMEGA, CHI, OMEGA2, CHI2, TTH, PHI};
+	static const char* axes_w[] = {OMEGA, TTH, PHI};
 	static const HklFunction *functions[] = {&RUBh_minus_Q_func};
 	static const HklModeAutoInfo info = {
 		HKL_MODE_AUTO_INFO(__func__, axes_r, axes_w, functions),
@@ -158,29 +122,16 @@ static HklMode *constant_omega_vertical(void)
 				 TRUE);
 }
 
-static HklMode* psi_vertical()
-{
-	static const char *axes_r[] = {MU, OMEGA, CHI, PHI, GAMMA, DELTA};
-	static const char *axes_w[] = {OMEGA, CHI, PHI, DELTA};
-	static const HklFunction *functions[] = {&psi_func};
-	static const HklModeAutoInfo info = {
-		HKL_MODE_AUTO_INFO_WITH_PARAMS(__func__, axes_r, axes_w,
-					       functions, psi_parameters),
-	};
-
-	return hkl_mode_psi_new(&info);
-}
-
 /*****************/
 /* mode readonly */
 /*****************/
 
 REGISTER_READONLY_INCIDENCE(hkl_engine_nsls_ii_cdi_3_2_2_incidence_new,
-			    P99_PROTECT({MU, OMEGA, CHI, PHI}),
+			    P99_PROTECT({MU, OMEGA, CHI, OMEGA2, CHI2}),
 			    surface_parameters_y);
 
 REGISTER_READONLY_EMERGENCE(hkl_engine_nsls_ii_cdi_3_2_2_emergence_new,
-			    P99_PROTECT({MU, OMEGA, CHI, PHI, GAMMA, DELTA}),
+			    P99_PROTECT({MU, OMEGA, CHI, OMEGA2, CHI2, TTH, PHI}),
 			    surface_parameters_y);
 
 /***********/
@@ -194,23 +145,7 @@ static HklEngine *hkl_engine_nsls_ii_cdi_3_2_2_hkl_new(HklEngineList *engines)
 
 	self = hkl_engine_hkl_new(engines);
 
-	default_mode = bissector_vertical();
-	hkl_engine_add_mode(self, default_mode);
-	hkl_engine_mode_set(self, default_mode);
-
-	hkl_engine_add_mode(self, constant_omega_vertical());
-
-	return self;
-}
-
-static HklEngine *hkl_engine_nsls_ii_cdi_3_2_2_psi_new(HklEngineList *engines)
-{
-	HklEngine *self;
-	HklMode *default_mode;
-
-	self = hkl_engine_psi_new(engines);
-
-	default_mode = psi_vertical();
+	default_mode = lifting_detector_omega();
 	hkl_engine_add_mode(self, default_mode);
 	hkl_engine_mode_set(self, default_mode);
 
@@ -226,10 +161,6 @@ static HklEngineList *hkl_engine_list_new_nsls_ii_cdi_3_2_2(const HklFactory *fa
 	HklEngineList *self = hkl_engine_list_new();
 
 	hkl_engine_nsls_ii_cdi_3_2_2_hkl_new(self);
-	hkl_engine_nsls_ii_cdi_3_2_2_psi_new(self);
-	hkl_engine_q2_new(self);
-	hkl_engine_qper_qpar_new(self);
-	hkl_engine_tth2_new(self);
 	hkl_engine_nsls_ii_cdi_3_2_2_incidence_new(self);
 	hkl_engine_nsls_ii_cdi_3_2_2_emergence_new(self);
 
