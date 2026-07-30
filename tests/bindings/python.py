@@ -433,5 +433,256 @@ class TestAPI(unittest.TestCase):
         del sample
 
 
+class TestCDI322(unittest.TestCase):
+    """Tests specific to the NSLS-II CDI 3-2-2 diffractometer geometry.
+
+    Axes (in order): mu, omega, chi, omega2, chi2, gamma, delta
+    Engines: hkl, q2, qper_qpar, tth2, incidence, emergence
+    """
+
+    FACTORY_NAME = "CDI-3-2-2"
+    # cubic silicon-like sample, a = 1.54 Å — identical to the CU lattice
+    # used throughout the other C tests
+    LATTICE_A = 1.54
+    WAVELENGTH = 1.54  # Å
+
+    def _make_geometry_and_engines(self, axis_values=None):
+        """Return (geometry, detector, sample, engines) for CDI-3-2-2."""
+        factory = Hkl.factories()[self.FACTORY_NAME]
+        geometry = factory.create_new_geometry()
+        geometry.wavelength_set(self.WAVELENGTH, Hkl.UnitEnum.USER)
+        if axis_values is not None:
+            geometry.axis_values_set(axis_values, Hkl.UnitEnum.USER)
+        detector = Hkl.Detector.factory_new(Hkl.DetectorType(0))
+        sample = Hkl.Sample.new("test")
+        lattice = sample.lattice_get()
+        lattice.set(
+            self.LATTICE_A,
+            self.LATTICE_A,
+            self.LATTICE_A,
+            90,
+            90,
+            90,
+            Hkl.UnitEnum.USER,
+        )
+        sample.lattice_set(lattice)
+        engines = factory.create_new_engine_list()
+        engines.init(geometry, detector, sample)
+        return geometry, detector, sample, engines
+
+    # ------------------------------------------------------------------
+    # Factory / geometry structure
+    # ------------------------------------------------------------------
+
+    def test_factory_exists(self):
+        """CDI-3-2-2 must be present in the factory registry."""
+        factories = Hkl.factories()
+        self.assertIn(self.FACTORY_NAME, factories)
+
+    def test_axis_names(self):
+        """Geometry must expose the seven expected axes in the right order."""
+        factory = Hkl.factories()[self.FACTORY_NAME]
+        geometry = factory.create_new_geometry()
+        names = list(geometry.axis_names_get())
+        self.assertEqual(
+            names, ["mu", "omega", "chi", "omega2", "chi2", "gamma", "delta"]
+        )
+
+    def test_engine_names(self):
+        """Engine list must contain exactly the six expected engines."""
+        factory = Hkl.factories()[self.FACTORY_NAME]
+        engines = factory.create_new_engine_list()
+        names = {e.name_get() for e in engines.engines_get()}
+        self.assertEqual(
+            names, {"hkl", "q2", "qper_qpar", "tth2", "incidence", "emergence"}
+        )
+
+    # ------------------------------------------------------------------
+    # hkl engine
+    # ------------------------------------------------------------------
+
+    def test_hkl_engine_mode(self):
+        """hkl engine must have exactly one mode: lifting_detector_omega."""
+        _, _, _, engines = self._make_geometry_and_engines([0, 30, 0, 0, 0, 0, 60])
+        engine = engines.engine_get_by_name("hkl")
+        modes = list(engine.modes_names_get())
+        self.assertEqual(modes, ["lifting_detector_omega"])
+
+    def test_hkl_engine_forward(self):
+        """Forward calculation: (mu=0, omega=30, chi=0, omega2=0, chi2=0, gamma=0, delta=60)
+        with cubic a=1.54 Å at λ=1.54 Å must give (h, k, l) = (0, 0, 1)."""
+        # mu=0, omega=30, chi=0, omega2=0, chi2=0, gamma=0, delta=60
+        *_rest, engines = self._make_geometry_and_engines([0, 30, 0, 0, 0, 0, 60])
+        engines.get()
+        engine = engines.engine_get_by_name("hkl")
+        h, k, l = engine.pseudo_axis_values_get(Hkl.UnitEnum.USER)
+        self.assertAlmostEqual(h, 0, places=5)
+        self.assertAlmostEqual(k, 0, places=5)
+        self.assertAlmostEqual(l, 1, places=5)
+
+    def test_hkl_engine_roundtrip(self):
+        """Setting (h,k,l) = (0,0,1) must yield a geometry that reproduces it."""
+        _geometry, detector, sample, engines = self._make_geometry_and_engines(
+            [0, 30, 0, 0, 0, 0, 60]
+        )
+        engine = engines.engine_get_by_name("hkl")
+        solutions = engine.pseudo_axis_values_set([0, 0, 1], Hkl.UnitEnum.USER)
+        self.assertIsNotNone(solutions)
+        items = solutions.items()
+        self.assertGreater(len(items), 0)
+        # verify each solution round-trips
+        for item in items:
+            geom = item.geometry_get()
+            engines2 = Hkl.factories()[self.FACTORY_NAME].create_new_engine_list()
+            engines2.init(geom, detector, sample)
+            engines2.get()
+            h, k, l = engines2.engine_get_by_name("hkl").pseudo_axis_values_get(
+                Hkl.UnitEnum.USER
+            )
+            self.assertAlmostEqual(h, 0, places=4)
+            self.assertAlmostEqual(k, 0, places=4)
+            self.assertAlmostEqual(l, 1, places=4)
+
+    def test_hkl_write_axes(self):
+        """hkl engine in lifting_detector_omega must write omega, gamma, delta only."""
+        _, _, _, engines = self._make_geometry_and_engines([0, 30, 0, 0, 0, 0, 60])
+        engine = engines.engine_get_by_name("hkl")
+        write_axes = set(engine.axis_names_get(Hkl.EngineAxisNamesGet.WRITE))
+        self.assertEqual(write_axes, {"omega", "gamma", "delta"})
+
+    # ------------------------------------------------------------------
+    # tth2 engine
+    # ------------------------------------------------------------------
+
+    def test_tth2_engine_forward(self):
+        """tth2 forward: delta=60°, gamma=0° → tth = 60° (π/3), alpha = 0."""
+        *_rest, engines = self._make_geometry_and_engines([0, 0, 0, 0, 0, 0, 60])
+        engines.get()
+        engine = engines.engine_get_by_name("tth2")
+        tth, alpha = engine.pseudo_axis_values_get(Hkl.UnitEnum.USER)
+        self.assertAlmostEqual(tth, 60, places=5)
+        self.assertAlmostEqual(alpha, 0, places=5)
+
+    def test_tth2_engine_roundtrip(self):
+        """tth2 set/get round-trip over a range of (tth, alpha) values."""
+        _geometry, detector, sample, engines = self._make_geometry_and_engines(
+            [0, 0, 0, 0, 0, 0, 60]
+        )
+        engine = engines.engine_get_by_name("tth2")
+        for tth_deg in [30, 45, 60, 90]:
+            for alpha_deg in [-30, 0, 30]:
+                solutions = engine.pseudo_axis_values_set(
+                    [tth_deg, alpha_deg], Hkl.UnitEnum.USER
+                )
+                if solutions is None:
+                    continue
+                item = solutions.items()[0]
+                geom2 = item.geometry_get()
+                engines2 = Hkl.factories()[self.FACTORY_NAME].create_new_engine_list()
+                engines2.init(geom2, detector, sample)
+                engines2.get()
+                tth2, alpha2 = engines2.engine_get_by_name(
+                    "tth2"
+                ).pseudo_axis_values_get(Hkl.UnitEnum.USER)
+                self.assertAlmostEqual(tth2, tth_deg, places=4)
+                self.assertAlmostEqual(alpha2, alpha_deg, places=4)
+
+    # ------------------------------------------------------------------
+    # q2 engine
+    # ------------------------------------------------------------------
+
+    def test_q2_engine_forward(self):
+        """q2 forward: delta=60°, gamma=0° at λ=1.54 Å.
+        q = (4π/λ) sin(tth/2) = (4π/1.54) sin(30°) ≈ 4.0785 Å⁻¹."""
+        *_rest, engines = self._make_geometry_and_engines([0, 0, 0, 0, 0, 0, 60])
+        engines.get()
+        engine = engines.engine_get_by_name("q2")
+        q, alpha = engine.pseudo_axis_values_get(Hkl.UnitEnum.USER)
+        expected_q = 4 * math.pi / self.WAVELENGTH * math.sin(math.radians(30))
+        self.assertAlmostEqual(q, expected_q, places=4)
+        self.assertAlmostEqual(alpha, 0, places=5)
+
+    def test_q2_engine_roundtrip(self):
+        """q2 set/get round-trip over a range of (q, alpha) values."""
+        _geometry, detector, sample, engines = self._make_geometry_and_engines(
+            [0, 0, 0, 0, 0, 0, 60]
+        )
+        engine = engines.engine_get_by_name("q2")
+        qmax = 4 * math.pi / self.WAVELENGTH
+        for q in [qmax * 0.2, qmax * 0.5, qmax * 0.8]:
+            for alpha_deg in [-20, 0, 20]:
+                solutions = engine.pseudo_axis_values_set(
+                    [q, alpha_deg], Hkl.UnitEnum.USER
+                )
+                if solutions is None:
+                    continue
+                item = solutions.items()[0]
+                geom2 = item.geometry_get()
+                engines2 = Hkl.factories()[self.FACTORY_NAME].create_new_engine_list()
+                engines2.init(geom2, detector, sample)
+                engines2.get()
+                q2, alpha2 = engines2.engine_get_by_name("q2").pseudo_axis_values_get(
+                    Hkl.UnitEnum.USER
+                )
+                self.assertAlmostEqual(q2, q, places=4)
+                self.assertAlmostEqual(alpha2, alpha_deg, places=4)
+
+    # ------------------------------------------------------------------
+    # incidence / emergence (read-only engines)
+    # ------------------------------------------------------------------
+
+    def test_incidence_engine_readonly(self):
+        """incidence engine must be read-only (not writable)."""
+        _, _, _, engines = self._make_geometry_and_engines([0, 0, 0, 0, 0, 0, 60])
+        engine = engines.engine_get_by_name("incidence")
+        caps = engine.capabilities_get()
+        self.assertTrue(caps & Hkl.EngineCapabilities.READABLE)
+        self.assertFalse(caps & Hkl.EngineCapabilities.WRITABLE)
+
+    def test_emergence_engine_readonly(self):
+        """emergence engine must be read-only (not writable)."""
+        _, _, _, engines = self._make_geometry_and_engines([0, 0, 0, 0, 0, 0, 60])
+        engine = engines.engine_get_by_name("emergence")
+        caps = engine.capabilities_get()
+        self.assertTrue(caps & Hkl.EngineCapabilities.READABLE)
+        self.assertFalse(caps & Hkl.EngineCapabilities.WRITABLE)
+
+    def test_incidence_all_zero(self):
+        """With all sample axes at 0° and surface normal along Y, incidence = 0°."""
+        *_rest, engines = self._make_geometry_and_engines([0, 0, 0, 0, 0, 0, 0])
+        engines.get()
+        engine = engines.engine_get_by_name("incidence")
+        incidence, _azimuth = engine.pseudo_axis_values_get(Hkl.UnitEnum.USER)
+        self.assertAlmostEqual(incidence, 0, places=5)
+
+    def test_emergence_uses_detector_axes(self):
+        """emergence must depend on detector axes: changing delta must change emergence."""
+        _, _, _, engines_a = self._make_geometry_and_engines([0, 0, 0, 0, 0, 0, 0])
+        _, _, _, engines_b = self._make_geometry_and_engines([0, 0, 0, 0, 0, 0, 60])
+        engines_a.get()
+        engines_b.get()
+        em_a, _ = engines_a.engine_get_by_name("emergence").pseudo_axis_values_get(
+            Hkl.UnitEnum.USER
+        )
+        em_b, _ = engines_b.engine_get_by_name("emergence").pseudo_axis_values_get(
+            Hkl.UnitEnum.USER
+        )
+        self.assertNotAlmostEqual(em_a, em_b, places=3)
+
+    def test_incidence_independent_of_detector(self):
+        """incidence must NOT depend on detector axes (gamma/delta)."""
+        _, _, _, engines_a = self._make_geometry_and_engines([0, 10, 5, 0, 0, 0, 0])
+        _, _, _, engines_b = self._make_geometry_and_engines([0, 10, 5, 0, 0, 30, 60])
+        engines_a.get()
+        engines_b.get()
+        inc_a, _ = engines_a.engine_get_by_name("incidence").pseudo_axis_values_get(
+            Hkl.UnitEnum.USER
+        )
+        inc_b, _ = engines_b.engine_get_by_name("incidence").pseudo_axis_values_get(
+            Hkl.UnitEnum.USER
+        )
+        self.assertAlmostEqual(inc_a, inc_b, places=10)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
