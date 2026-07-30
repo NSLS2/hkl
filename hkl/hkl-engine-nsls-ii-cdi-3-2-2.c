@@ -27,7 +27,7 @@
  * The instrument has a 5-circle sample stack (mu carries omega
  * carries chi carries a second omega/chi pair, named omega2/chi2
  * here) and two independent detector arms, each carrying 2 axes
- * (tth, phi).  A libhkl geometry supports only a single detector
+ * (gamma, delta).  A libhkl geometry supports only a single detector
  * holder, so this geometry describes the sample stack plus ONE
  * detector arm.  Client software instantiates it once per arm and is
  * responsible for keeping the sample axis values synchronized
@@ -55,8 +55,8 @@
 #define CHI2 "chi2"
 
 /* detector arm */
-#define TTH "tth"
-#define PHI "phi"
+#define GAMMA "gamma"
+#define DELTA "delta"
 
 /************/
 /* Geometry */
@@ -65,11 +65,10 @@
 /* TODO: check the exact rotation senses (signs) of every axis. */
 
 #define HKL_GEOMETRY_NSLS_II_CDI_3_2_2_DESCRIPTION			\
+        "Note that the conventions in hkl are different than at NSLS-II\n"\
+        "At NSLS-II the beam is in [0, 0, 1], vertical is [0, 1, 0] and outboard is [1, 0, 0]\n\n" \
 	"+ xrays source fix allong the :math:`\\vec{x}` direction (1, 0, 0)\n" \
 	"+ 5 axes for the sample (outermost to innermost)\n"		\
-        "\n\n"                                                          \
-        "Note that the conventions in hkl are different than at NSLS-II\n"\
-        "At NSLS-II the beam is in [0, 0, 1], vertical is [0, 1, 0] and outboard is [1, 0, 0]\n" \
         "\n\n" \
 	"\n"								\
 	"  + **" MU "** : rotating around the vertical :math:`\\vec{z}` direction (0, 0, 1)\n" \
@@ -80,10 +79,10 @@
 	"\n"								\
 	"+ 2 axes for the detector (one of the two physical arms)\n"	\
 	"\n"								\
-	"  + **" TTH "** : rotation around the :math:`\\vec{z}` direction (0, 0, 1)\n" \
-	"  + **" PHI "** : rotation around the :math:`\\vec{y}` direction (0, 1, 0)\n"
+	"  + **" GAMMA "** : rotation around the :math:`\\vec{z}` direction (0, 0, 1)\n" \
+	"  + **" DELTA "** : rotation around the :math:`\\vec{y}` direction (0, 1, 0)\n"
 
-static const char* hkl_geometry_nsls_ii_cdi_3_2_2_axes[] = {MU, OMEGA, CHI, OMEGA2, CHI2, TTH, PHI};
+static const char* hkl_geometry_nsls_ii_cdi_3_2_2_axes[] = {MU, OMEGA, CHI, OMEGA2, CHI2, GAMMA, DELTA};
 
 static HklGeometry *hkl_geometry_new_nsls_ii_cdi_3_2_2(const HklFactory *factory)
 {
@@ -100,8 +99,8 @@ static HklGeometry *hkl_geometry_new_nsls_ii_cdi_3_2_2(const HklFactory *factory
 
 	/* detector arm */
 	h = hkl_geometry_add_holder(self);
-	hkl_holder_add_rotation(h, TTH, 0, 0, 1, &hkl_unit_angle_deg);
-	hkl_holder_add_rotation(h, PHI, 0, 1, 0, &hkl_unit_angle_deg);
+	hkl_holder_add_rotation(h, GAMMA, 0, 0, 1, &hkl_unit_angle_deg);
+	hkl_holder_add_rotation(h, DELTA, 0, 1, 0, &hkl_unit_angle_deg);
 
 	return self;
 }
@@ -114,8 +113,8 @@ static HklGeometry *hkl_geometry_new_nsls_ii_cdi_3_2_2(const HklFactory *factory
  * axes.  RUBh_minus_Q_func solves for exactly three axes. */
 static HklMode *lifting_detector_omega(void)
 {
-	static const char* axes_r[] = {MU, OMEGA, CHI, OMEGA2, CHI2, TTH, PHI};
-	static const char* axes_w[] = {OMEGA, TTH, PHI};
+	static const char* axes_r[] = {MU, OMEGA, CHI, OMEGA2, CHI2, GAMMA, DELTA};
+	static const char* axes_w[] = {OMEGA, GAMMA, DELTA};
 	static const HklFunction *functions[] = {&RUBh_minus_Q_func};
 	static const HklModeAutoInfo info = {
 		HKL_MODE_AUTO_INFO(__func__, axes_r, axes_w, functions),
@@ -135,7 +134,7 @@ REGISTER_READONLY_INCIDENCE(hkl_engine_nsls_ii_cdi_3_2_2_incidence_new,
 			    surface_parameters_y);
 
 REGISTER_READONLY_EMERGENCE(hkl_engine_nsls_ii_cdi_3_2_2_emergence_new,
-			    P99_PROTECT({MU, OMEGA, CHI, OMEGA2, CHI2, TTH, PHI}),
+			    P99_PROTECT({MU, OMEGA, CHI, OMEGA2, CHI2, GAMMA, DELTA}),
 			    surface_parameters_y);
 
 /***********/
