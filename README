@@ -8,3 +8,31 @@ To build you need
 	gtk-doc >= 1.9 (doc -- required)		http://www.gtk.org/gtk-doc/
 	povray	       (doc -- optional)		http://www.povray.org/
 	asymptote      (doc -- optional)		http://asymptote.sourceforge.net/
+
+
+There is a pixi.toml and conda recipe in this repo.  To build and run a
+the Python portion of the hkl test suite ::
+
+   pixi run test
+
+This will automatically rebuild when any local edits are made.
+
+To add a development version of hkl to a pixi manifest use:
+
+[workspace]
+preview = ["pixi-build"]
+
+[dependencies]
+hkl = { git = "https://git@github.com/nsls2/hkl.git", rev="add-cdi" }
+
+
+
+To add the development version as a dependency in another conda package use:
+
+
+[workspace]
+preview = ["pixi-build"]
+
+
+[package.run-dependencies]
+hkl = { git = "https://git@github.com/nsls2/hkl.git", rev="add-cdi" }
