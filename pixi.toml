@@ -10,3 +10,16 @@ version = "5.1.9"
 
 [package.build]
 backend = { name = "pixi-build-rattler-build", version = "*" }
+
+[feature.test.dependencies]
+hkl = { path = "." }
+python = "*"
+pygobject = "*"
+numpy = "*"
+
+[feature.test.tasks]
+test = { cmd = "python -m unittest tests/bindings/python.py tests/bindings/polarisation.py", env = { DATADIR = "tests/bindings" } }
+
+
+[environments]
+test = ["test"]
