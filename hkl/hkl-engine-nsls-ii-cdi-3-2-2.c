@@ -34,13 +34,16 @@
  * between the two instances (libhkl has no runtime linkage between
  * geometry instances anyway).
  *
- * NOTE: the generic q2/qper_qpar/tth2 engines are not registered
- * here because they hard-code detector axes named "gamma"/"delta"
- * (see hkl-pseudoaxis-common-q.c).
+ * The detector arm uses the hkl-standard axis names gamma/delta, so
+ * the generic q2/qper_qpar/tth2 detector engines (which write those
+ * axes, see hkl-pseudoaxis-common-q.c) work as-is and are
+ * registered below.
  */
 #include <gsl/gsl_sys.h>                // for gsl_isnan
 #include "hkl-factory-private.h"        // for autodata_factories_, etc
 #include "hkl-pseudoaxis-common-hkl-private.h"  // for hkl_mode_operations, etc
+#include "hkl-pseudoaxis-common-q-private.h"  // for hkl_engine_q2_new, etc
+#include "hkl-pseudoaxis-common-tth-private.h"  // for hkl_engine_tth2_new, etc
 #include "hkl-pseudoaxis-common-readonly-private.h"
 
 /**************/
@@ -164,6 +167,9 @@ static HklEngineList *hkl_engine_list_new_nsls_ii_cdi_3_2_2(const HklFactory *fa
 	HklEngineList *self = hkl_engine_list_new();
 
 	hkl_engine_nsls_ii_cdi_3_2_2_hkl_new(self);
+	hkl_engine_q2_new(self);
+	hkl_engine_qper_qpar_new(self);
+	hkl_engine_tth2_new(self);
 	hkl_engine_nsls_ii_cdi_3_2_2_incidence_new(self);
 	hkl_engine_nsls_ii_cdi_3_2_2_emergence_new(self);
 
